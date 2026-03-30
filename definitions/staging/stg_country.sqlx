@@ -4,11 +4,8 @@ config {
 }
 
 SELECT
-  country,
-  continent,
-  births,
-  urbanisation_rate,
-  year,
-  source
+  *
 FROM
   ${ref("country_metadata")}
+WHERE region != 'Aggregates' AND income_group != 'High income'
+AND income_group IS NOT NULL
