@@ -1,0 +1,42 @@
+config {
+  type: "table",
+  name: "paint_summary_by_country"
+}
+
+SELECT
+    i.country,
+    i.total_paint_volume_millions_L,
+    i.lead_paint_volume_millions_L,
+    i.date_of_volume,
+    i.manufacturer_id,
+    c.market_shift_year,
+    c.additional_years_before_market_shift_without_leep,
+    cd.continent,
+    cd.births,
+    cd.urbanisation_rate,
+    cd.year,
+    cd.source,
+    pa.percentage_newly_painted_homes_per_year,
+    pa.percentage_repainted_homes_per_year,
+    pa.colored_paint_market_share,
+    pa.paint_bll_impact_ug_per_dl,
+    pa.health_dalys_per_bll,
+    pa.iq_points_lost_per_bll,
+    pa.number_of_years_spent_working,
+    pa.income_loss_percentage_per_iq_point,
+    pa.daly_to_income_factor,
+    pa.health_dalys_discount_rate,
+    pa.income_dalys_discount_rate,
+    pa.program_success_probability,
+    pa.percentage_urban_homes_painted,
+    pa.percentage_rural_homes_painted
+FROM
+  ${ref("stg_industry")} i
+LEFT JOIN
+  ${ref("stg_counterfactual")} c
+  ON i.country = c.country
+LEFT JOIN
+  ${ref("stg_country")} cd
+  ON i.country = cd.country
+CROSS JOIN
+  ${ref("stg_paint")} pa

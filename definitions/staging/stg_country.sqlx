@@ -1,0 +1,14 @@
+config {
+  type: "table",
+  name: "stg_country"
+}
+
+SELECT
+  country,
+  continent,
+  births,
+  urbanisation_rate,
+  year,
+  source
+FROM
+  ${ref("country_metadata")}

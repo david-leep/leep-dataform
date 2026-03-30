@@ -1,0 +1,11 @@
+config {
+  type: "table",
+  name: "stg_counterfactual"
+}
+
+SELECT
+  market_shift_year,
+  additional_years_before_market_shift_without_leep,
+  country
+FROM
+  ${ref("counterfactual")}
