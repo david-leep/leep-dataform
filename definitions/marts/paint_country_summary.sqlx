@@ -18,16 +18,16 @@ daly_components AS (
     (income_loss_percentage_per_iq_point
       * iq_points_lost_per_bll
       * cbll_averted_potential
-      * number_of_years_spent_working)
-      / daly_to_income_factor
+      * number_of_years_spent_working
+      * daly_to_income_factor)
       AS potential_income_dalys,
     health_dalys_per_bll * cbll_averted_to_date
       AS to_date_health_dalys,
     (income_loss_percentage_per_iq_point
       * iq_points_lost_per_bll
       * cbll_averted_to_date
-      * number_of_years_spent_working)
-      / daly_to_income_factor
+      * number_of_years_spent_working
+      * daly_to_income_factor)
       AS to_date_income_dalys
   FROM base
 ),
