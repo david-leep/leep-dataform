@@ -1,11 +1,15 @@
 config {
   type: "table",
-  name: "stg_country"
+  name: "stg_country",
+  description: "Country metadata from raw source. One row per country, including income group for LMIC filtering.",
+  tags: ["staging"]
 }
 
 SELECT
-  *
+  country_code,
+  income_group
 FROM
   ${ref("country_metadata")}
-WHERE region != 'Aggregates' AND income_group != 'High income'
-AND income_group IS NOT NULL
+WHERE
+  income_group IS NOT NULL
+  AND income_group NOT IN ('High income', 'Aggregates')

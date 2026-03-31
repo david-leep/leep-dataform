@@ -1,0 +1,138 @@
+config {
+  type: "table",
+  name: "int_paint_program_base",
+  description: "Joins all staging tables for paint programs and computes intermediate exposure calculations sequentially. Produces two cbll_averted values: potential (full program success from baseline) and to_date (actual reduction achieved as of date_of_volume).",
+  tags: ["intermediate"]
+}
+
+WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
+
+     industry_by_country AS (
+       SELECT
+         country,
+         SUM(total_paint_volume_millions_L) AS total_paint_volume_millions_L,
+         SUM(lead_paint_volume_millions_L)  AS lead_paint_volume_millions_L,
+         MAX(date_of_volume)                AS date_of_volume
+       FROM ${ref("stg_industry")}
+       GROUP BY country
+     ),
+
+     cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
+     base AS (SELECT * FROM ${ref("stg_country_paint_baseline")}),
+     pa   AS (SELECT * FROM ${ref("stg_paint")}),
+
+     -- Step 1: join all sources, compute market share inputs
+     joined AS (
+       SELECT
+         cp.country_name,
+         cp.country_code,
+         cp.income_group,
+         cp.annual_number_of_births,
+         cp.urban_rate,
+         base.lead_paint_market_share                                                           AS baseline_lead_paint_market_share,
+         SAFE_DIVIDE(i.lead_paint_volume_millions_L, i.total_paint_volume_millions_L)           AS current_lead_paint_market_share,
+         i.date_of_volume,
+         cf.market_shift_year,
+         cf.additional_years_before_market_shift_without_leep,
+         cf.market_shift_year + cf.additional_years_before_market_shift_without_leep            AS market_shift_counterfactual_year,
+         cf.lead_paint_reduction_percentage,
+         pa.paint_bll_impact_ug_per_dl,
+         pa.health_dalys_per_bll,
+         pa.iq_points_lost_per_bll,
+         pa.number_of_years_spent_working,
+         pa.income_loss_percentage_per_iq_point,
+         pa.daly_to_income_factor,
+         pa.health_dalys_discount_rate,
+         pa.income_dalys_discount_rate,
+         pa.program_success_probability,
+         pa.percentage_urban_homes_painted,
+         pa.percentage_rural_homes_painted,
+         pa.colored_paint_market_share,
+         pa.percentage_newly_painted_homes_per_year,
+         pa.percentage_repainted_homes_per_year
+       FROM cp
+       LEFT JOIN industry_by_country i ON cp.country_name = i.country
+       LEFT JOIN cf                    ON cp.country_name = cf.country
+       LEFT JOIN base                  ON cp.country_name = base.country
+       CROSS JOIN pa
+     ),
+
+     -- Step 2: compute derived market share reductions and children in painted homes
+     exposure_base AS (
+       SELECT
+         *,
+         baseline_lead_paint_market_share * lead_paint_reduction_percentage
+           AS potential_market_share_reduction,
+         baseline_lead_paint_market_share - current_lead_paint_market_share
+           AS to_date_market_share_reduction,
+         -- K: children born into painted homes, weighted by urban/rural rates
+         (urban_rate * percentage_urban_homes_painted
+           + (1 - urban_rate) * percentage_rural_homes_painted)
+           * annual_number_of_births
+           AS children_born_in_painted_homes
+       FROM joined
+     ),
+
+     -- Step 3: children born in lead-painted homes (using baseline market share)
+     lead_exposure AS (
+       SELECT
+         *,
+         -- R: children born annually in homes painted with lead paint
+         baseline_lead_paint_market_share
+           * colored_paint_market_share
+           * (percentage_newly_painted_homes_per_year + percentage_repainted_homes_per_year)
+           * children_born_in_painted_homes
+           AS children_born_in_lead_painted_homes
+       FROM exposure_base
+     ),
+
+     -- Step 4: total children with averted exposure over the counterfactual window
+     averted_exposure AS (
+       SELECT
+         *,
+         -- V_potential: using assumed max reduction
+         children_born_in_lead_painted_homes
+           * (1 / percentage_repainted_homes_per_year)
+           * additional_years_before_market_shift_without_leep
+           * lead_paint_reduction_percentage
+           AS children_averted_potential,
+         -- V_to_date: using actual observed reduction
+         children_born_in_lead_painted_homes
+           * (1 / percentage_repainted_homes_per_year)
+           * additional_years_before_market_shift_without_leep
+           * SAFE_DIVIDE(to_date_market_share_reduction, baseline_lead_paint_market_share)
+           AS children_averted_to_date
+       FROM lead_exposure
+     )
+
+-- Step 5: final output — cbll averted = children_averted × bll_impact
+SELECT
+  country_name,
+  country_code,
+  income_group,
+  annual_number_of_births,
+  urban_rate,
+  baseline_lead_paint_market_share,
+  current_lead_paint_market_share,
+  date_of_volume,
+  market_shift_year,
+  market_shift_counterfactual_year,
+  lead_paint_reduction_percentage,
+  potential_market_share_reduction,
+  to_date_market_share_reduction,
+  children_born_in_painted_homes,
+  children_born_in_lead_painted_homes,
+  children_averted_potential,
+  children_averted_to_date,
+  paint_bll_impact_ug_per_dl,
+  health_dalys_per_bll,
+  iq_points_lost_per_bll,
+  number_of_years_spent_working,
+  income_loss_percentage_per_iq_point,
+  daly_to_income_factor,
+  health_dalys_discount_rate,
+  income_dalys_discount_rate,
+  program_success_probability,
+  children_averted_potential * paint_bll_impact_ug_per_dl AS cbll_averted_potential,
+  children_averted_to_date   * paint_bll_impact_ug_per_dl AS cbll_averted_to_date
+FROM averted_exposure

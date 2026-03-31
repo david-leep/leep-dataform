@@ -1,0 +1,22 @@
+config {
+  type: "table",
+name: "stg_indicators_long",
+  description: "World Bank indicators ingested from raw source. One row per country, indicator, and year.",
+  tags: ["staging"]
+}
+
+SELECT
+  country_code,
+  country_name,
+  indicator_name,
+  value,
+  year
+FROM
+  ${ref("indicators_long")}
+WHERE
+  indicator_name IN (
+    'birth_rate_crude',
+    'population_total',
+    'urban_pop_pct'
+  )
+  AND value IS NOT NULL

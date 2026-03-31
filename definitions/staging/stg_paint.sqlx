@@ -1,6 +1,7 @@
 config {
   type: "table",
-  name: "stg_paint"
+  name: "stg_paint",
+  tags: ["staging"]
 }
 
 SELECT

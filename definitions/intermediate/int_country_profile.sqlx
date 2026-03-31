@@ -1,0 +1,48 @@
+config {
+  type: "table",
+name: "int_country_profile",
+  description: "LMIC countries with latest World Bank demographic indicators. Inner join filters to countries present in both country_metadata and indicators_long, and restricts to low/middle income countries only.",
+  tags: ["intermediate"]
+}
+
+WITH latest_values AS (
+  SELECT
+    country_code,
+    country_name,
+    indicator_name,
+    value,
+    ROW_NUMBER() OVER (
+      PARTITION BY country_code, indicator_name
+      ORDER BY year DESC
+    ) AS rn
+  FROM ${ref("stg_indicators_long")}
+),
+
+population_data AS (
+  SELECT
+    country_code,
+    country_name,
+    MAX(IF(indicator_name = 'birth_rate_crude', value, NULL)) AS birth_rate,
+    MAX(IF(indicator_name = 'population_total', value, NULL)) AS population,
+    MAX(IF(indicator_name = 'urban_pop_pct',    value, NULL)) AS urban_rate
+  FROM latest_values
+  WHERE rn = 1
+  GROUP BY country_code, country_name
+)
+
+SELECT
+  c.country_code,
+  c.income_group,
+  pd.country_name,
+  pd.birth_rate,
+  pd.population,
+  pd.urban_rate,
+  CAST(pd.birth_rate / 1000 * pd.population AS INT64) AS annual_number_of_births
+FROM ${ref("stg_country")} c
+INNER JOIN population_data pd
+  ON pd.country_code = c.country_code
+WHERE c.income_group IN (
+  'Upper middle income',
+  'Lower middle income',
+  'Low income'
+)

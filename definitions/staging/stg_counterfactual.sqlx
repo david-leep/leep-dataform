@@ -1,11 +1,13 @@
 config {
   type: "table",
-  name: "stg_counterfactual"
+  name: "stg_counterfactual",
+  tags: ["staging"]
 }
 
 SELECT
+  country,
   market_shift_year,
   additional_years_before_market_shift_without_leep,
-  country
+  lead_paint_reduction_percentage
 FROM
   ${ref("counterfactual")}

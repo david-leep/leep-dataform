@@ -1,0 +1,12 @@
+config {
+  type: "table",
+  name: "stg_country_paint_baseline",
+  description: "Baseline lead paint market share per country before LEEP intervention. External table backed by Google Sheet. One row per country.",
+  tags: ["staging"]
+}
+
+SELECT
+  country,
+  lead_paint_market_share
+FROM
+  ${ref("country_paint_baseline")}

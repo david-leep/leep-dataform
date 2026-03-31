@@ -1,6 +1,7 @@
 config {
   type: "table",
-  name: "stg_industry"
+  name: "stg_industry",
+  tags: ["staging"]
 }
 
 SELECT
