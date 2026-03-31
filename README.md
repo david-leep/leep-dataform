@@ -14,7 +14,9 @@ The current pipeline produces `paint_summary_by_country` — DALY impact estimat
 
 ```
 definitions/
-├── sources.js                        # Declares raw BigQuery tables as Dataform sources
+├── sources.js                        # Declares native BigQuery tables (indicators_long, country_metadata) as Dataform sources
+├── sources/                          # DDL to create Google Sheets-backed external tables in BigQuery
+│   └── external_tables.sqlx          # CREATE OR REPLACE EXTERNAL TABLE statements for all Google Sheets sources
 ├── staging/                          # One file per source — light cleaning and column selection only, no joins
 │   ├── stg_country.sqlx              # LMIC country list filtered from country_metadata
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
@@ -29,6 +31,56 @@ definitions/
     └── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
 ```
 
+## Pipeline diagram
+
+```
+ GOOGLE SHEETS                        BIGQUERY (native)
+ ─────────────                        ─────────────────
+ industry            ──┐              indicators_long  ──┐
+ counterfactual      ──┤              country_metadata ──┤
+ paint               ──┤                                 │
+ country_paint_      ──┘                                 │
+   baseline                                              │
+        │                                                │
+        ▼                                                ▼
+ sources/external_tables.sqlx        sources.js
+ (CREATE EXTERNAL TABLE)             (declare)
+        │                                                │
+        └──────────────────┬──────────────────────────── ┘
+                           │
+                           ▼  STAGING
+              ┌────────────────────────────┐
+              │  stg_industry              │
+              │  stg_counterfactual        │
+              │  stg_paint                 │
+              │  stg_country_paint_        │
+              │    baseline                │
+              │  stg_country           ───┐│
+              │  stg_indicators_long   ───┘│
+              └────────────────────────────┘
+                           │
+                           ▼  INTERMEDIATE
+              ┌────────────────────────────┐
+              │  int_country_profile       │◄── stg_country
+              │  (births, urban rate)      │    stg_indicators_long
+              └────────────────────────────┘
+                           │
+                           ▼
+              ┌────────────────────────────┐
+              │  int_paint_program_base    │◄── int_country_profile
+              │  (children averted,        │    stg_industry
+              │   cbll_averted)            │    stg_counterfactual
+              └────────────────────────────┘    stg_paint
+                           │                    stg_country_paint_baseline
+                           ▼  MARTS
+              ┌────────────────────────────┐
+              │  paint_summary_by_country  │
+              │  (DALYs averted,           │
+              │   discounted,              │
+              │   probability-weighted)    │
+              └────────────────────────────┘
+```
+
 ## Layer logic
 
 - **sources.js** — tells Dataform which raw BigQuery tables exist, without transforming them
@@ -39,6 +91,7 @@ definitions/
 Each layer has a tag so you can run selectively:
 
 ```bash
+dataform run --tags sources
 dataform run --tags staging
 dataform run --tags intermediate
 dataform run --tags marts
