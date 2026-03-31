@@ -36,7 +36,7 @@ SELECT
   pd.country_name,
   pd.birth_rate,
   pd.population,
-  pd.urban_rate,
+  CAST(pd.urban_rate / 100 AS FLOAT64) AS urban_rate,
   CAST(pd.birth_rate / 1000 * pd.population AS INT64) AS annual_number_of_births
 FROM ${ref("stg_country")} c
 INNER JOIN population_data pd

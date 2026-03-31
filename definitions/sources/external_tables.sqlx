@@ -1,6 +1,7 @@
 config {
   type: "operations",
-  tags: ["sources"]
+  tags: ["sources"],
+  disabled: true
 }
 
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.industry`
