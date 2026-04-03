@@ -133,4 +133,8 @@ All in the `example` dataset in `leep-data-system`:
 2. Edit `.sqlx` files directly
 3. Open a PR against `main`
 
-Note: tables backed by Google Sheets (e.g. `country_paint_baseline`, `paint`) require Drive API access. Run these via the GCP Dataform console rather than the CLI, as service accounts need Domain-Wide Delegation to access Sheets-backed external tables from the command line.
+Note: tables backed by Google Sheets (e.g. `country_paint_baseline`, `paint`) require Drive API access. You can authenticate Dataform in locally by running
+
+```bash
+dataform init-creds
+```
