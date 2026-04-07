@@ -1,0 +1,33 @@
+config {
+  type: "operations",
+  tags: ["staging"],
+  hasOutput: true
+}
+
+DECLARE query STRING;
+
+SET query = (
+  SELECT CONCAT(
+    'CREATE OR REPLACE VIEW `leep-data-system.example.stg_industry_full` AS SELECT ',
+    STRING_AGG(
+      CONCAT(
+        '`', column_name, '` AS ',
+        REGEXP_REPLACE(
+          REGEXP_REPLACE(
+            REGEXP_REPLACE(
+              LOWER(TRIM(column_name)),
+              r'[^a-z0-9]+', '_'
+            ),
+            r'_+', '_'
+          ),
+          r'^_|_$', ''
+        )
+      )
+    ),
+    ' FROM `leep-data-system.example.industry_full_raw`'
+  )
+  FROM `leep-data-system.example.INFORMATION_SCHEMA.COLUMNS`
+  WHERE table_name = 'industry_full_raw'
+);
+
+EXECUTE IMMEDIATE query;
