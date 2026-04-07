@@ -58,7 +58,7 @@ SELECT
   urban_rate,
   baseline_lead_paint_market_share,
   current_lead_paint_market_share,
-  date_of_volume,
+  market_share_year_month,
   market_shift_year,
   market_shift_counterfactual_year,
   lead_paint_reduction_percentage,

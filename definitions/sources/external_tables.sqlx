@@ -4,13 +4,6 @@ config {
   disabled: true
 }
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.industry`
-OPTIONS (
-  format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1g61_VfFz4rgmIT1v9Hhmg8TqBtcSr_ePVoGPMHtW6Qg/edit'],
-  skip_leading_rows = 1
-);
-
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.counterfactual`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
@@ -29,5 +22,13 @@ CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.country_paint_baselin
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/1rvZrd7t7F7Q5phBF2ewrVTDTsZhtBwbIZkQPrUMQNtk/edit'],
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.industry_full_raw`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/15_iXYG59jYJk6Psg9fSBgRlzX8dx1EucPQI78Pnjqh4/edit'],
+  sheet_range = 'All Manu Data',
   skip_leading_rows = 1
 );
