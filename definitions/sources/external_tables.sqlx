@@ -29,6 +29,6 @@ CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.industry_full_raw`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/15_iXYG59jYJk6Psg9fSBgRlzX8dx1EucPQI78Pnjqh4/edit'],
-  sheet_range = 'All Manu Data',
+  sheet_range = 'All Tracker Data',
   skip_leading_rows = 1
 );

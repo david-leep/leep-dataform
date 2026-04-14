@@ -1,7 +1,8 @@
 config {
   type: "operations",
   tags: ["staging"],
-  hasOutput: true
+  hasOutput: true,
+  dependencies: ["external_tables"]
 }
 
 DECLARE query STRING;
