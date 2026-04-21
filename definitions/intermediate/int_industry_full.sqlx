@@ -3,9 +3,12 @@ config {
   name: "int_industry_full",
   tags: ["intermediate"],
   bigquery: {
-    partitionBy: "partition_date",
-    updatePartitionFilter: "partition_date = DATE_TRUNC(CURRENT_DATE(), MONTH)"
+    partitionBy: "partition_date"
   }
+}
+
+pre_operations {
+  DELETE FROM ${self()} WHERE partition_date = DATE_TRUNC(CURRENT_DATE(), MONTH)
 }
 
 SELECT

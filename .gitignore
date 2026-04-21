@@ -1,3 +1,4 @@
 .df-credentials.json
 *.json
 CLAUDE.md
+plans/*
