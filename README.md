@@ -8,7 +8,9 @@ This repo is connected to the Dataform project in GCP (`leep-data-system`, regio
 
 Raw data is ingested into BigQuery by Cloud Functions (see [leep-data-system](https://github.com/david-leep/leep-data-system)). This Dataform project takes those raw tables and transforms them into analysis-ready tables.
 
-The current pipeline produces `paint_summary_by_country` — DALY impact estimates per country for LEEP paint programs, covering two scenarios: potential impact (full program success) and to-date impact (actual market share reduction observed so far).
+The current pipeline produces two mart tables:
+- `paint_summary_by_country` — DALY impact estimates per country for LEEP paint programs, covering two scenarios: potential impact (full program success) and to-date impact (actual market share reduction observed so far)
+- `mart_industry_country_summary` — manufacturer engagement milestones and paint volumes aggregated by country
 
 ## Folder structure
 
@@ -20,18 +22,17 @@ definitions/
 ├── staging/                          # One file per source — light cleaning and column selection only, no joins
 │   ├── stg_country.sqlx              # LMIC country list filtered from country_metadata
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
-│   ├── stg_industry.sqlx             # Paint industry volumes per manufacturer per country
 │   ├── stg_industry_full.sqlx        # Dynamic column cleaning for industry_full_raw (EXECUTE IMMEDIATE)
 │   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target)
-│   ├── stg_country_paint_baseline.sqlx  # Baseline lead paint market share before LEEP intervention
 │   └── stg_paint.sqlx                # Global model parameters (BLL impact, DALYs, discount rates, etc.)
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
-│   ├── int_lead_paint_market_share.sqlx  # Lead paint market share per country per month, accounting for water/oil split
+│   ├── int_lead_paint_market_share.sqlx  # Baseline and current lead paint market share per country per month (current excludes reformulated manufacturers)
 │   └── int_paint_program_base.sqlx   # Joins all sources; computes exposure and children averted (potential and to-date)
 └── marts/                            # Final output tables used for analysis and reporting
-    └── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
+    ├── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
+    └── mart_industry_country_summary.sqlx  # Manufacturer milestone counts and volumes per country
 ```
 
 ## Pipeline diagram
@@ -39,12 +40,9 @@ definitions/
 ```
  GOOGLE SHEETS                        BIGQUERY (native)
  ─────────────                        ─────────────────
- industry            ──┐              indicators_long  ──┐
- industry_full_raw   ──┤              country_metadata ──┤
- counterfactual      ──┤                                 │
- paint               ──┤                                 │
- country_paint_      ──┘                                 │
-   baseline                                              │
+ industry_full_raw   ──┐              indicators_long  ──┐
+ counterfactual      ──┤              country_metadata ──┤
+ paint               ──┘                                 │
         │                                                │
         ▼                                                ▼
  sources/external_tables.sqlx        sources.js
@@ -54,12 +52,9 @@ definitions/
                            │
                            ▼  STAGING
               ┌────────────────────────────┐
-              │  stg_industry              │
               │  stg_industry_full     ────│── dynamic column cleaning (EXECUTE IMMEDIATE)
               │  stg_counterfactual        │
               │  stg_paint                 │
-              │  stg_country_paint_        │
-              │    baseline                │
               │  stg_country           ───┐│
               │  stg_indicators_long   ───┘│
               └────────────────────────────┘
@@ -75,29 +70,31 @@ definitions/
               │  int_industry_full         │◄── stg_industry_full
               │  (monthly snapshots,       │
               │   partitioned by month)    │
-              └────────────────────────────┘
-                           │
-                           ▼
-              ┌────────────────────────────┐
-              │  int_lead_paint_market_    │◄── int_industry_full
-              │    share                   │
-              │  (per country per month)   │
-              └────────────────────────────┘
-                           │
-                           ▼
-              ┌────────────────────────────┐
-              │  int_paint_program_base    │◄── int_country_profile
-              │  (children averted,        │    int_lead_paint_market_share
-              │   cbll_averted)            │    stg_counterfactual
-              └────────────────────────────┘    stg_paint
-                           │                    stg_country_paint_baseline
-                           ▼  MARTS
-              ┌────────────────────────────┐
-              │  paint_summary_by_country  │
-              │  (DALYs averted,           │
-              │   discounted,              │
-              │   probability-weighted)    │
-              └────────────────────────────┘
+              └───────────┬────────────────┘
+                          │
+                 ┌────────┴────────┐
+                 ▼                 ▼
+ ┌────────────────────────────┐  ┌────────────────────────────┐
+ │  int_lead_paint_market_    │  │  mart_industry_country_    │◄── int_country_profile
+ │    share                   │  │    summary                 │
+ │  (baseline + current       │  │  (milestone counts,        │
+ │   per country per month)   │  │   volumes per country)     │
+ └────────────────────────────┘  └────────────────────────────┘
+                 │
+                 ▼
+ ┌────────────────────────────┐
+ │  int_paint_program_base    │◄── int_country_profile
+ │  (children averted,        │    int_lead_paint_market_share
+ │   cbll_averted)            │    stg_counterfactual
+ └────────────────────────────┘    stg_paint
+                 │
+                 ▼  MARTS
+ ┌────────────────────────────┐
+ │  paint_summary_by_country  │
+ │  (DALYs averted,           │
+ │   discounted,              │
+ │   probability-weighted)    │
+ └────────────────────────────┘
 ```
 
 ## Layer logic
@@ -122,8 +119,8 @@ This Dataform pipeline creates program-level estimates of impact for LEEP's pain
 
 1. **Country profile** (`int_country_profile`) — joins World Bank birth rate, population, and urbanisation data to produce `annual_number_of_births` and `urban_rate` per LMIC country
 2. **Industry data** (`stg_industry_full` → `int_industry_full`) — dynamically cleans column names from the raw Google Sheet at runtime (trimming whitespace, lowercasing, replacing special characters), then stores monthly snapshots in a partitioned incremental table
-3. **Lead paint market share** (`int_lead_paint_market_share`) — calculates lead paint market share per country per month, with logic that accounts for whether a country has water-based paint manufacturers (volume-weighted share) or only oil-based (high-lead volume / total oil volume)
-4. **Exposure base** (`int_paint_program_base`) — uses the latest month's market share to compute children born in lead-painted homes, then calculates how many children's exposure is averted under two scenarios:
+3. **Lead paint market share** (`int_lead_paint_market_share`) — calculates two market share figures per country per month: `baseline_lead_paint_market_share` (all manufacturers with high-Pb volume count as leaded) and `current_lead_paint_market_share` (excludes manufacturers who have completed reformulation). The water/oil branching logic accounts for whether a country has water-based paint manufacturers (volume-weighted share) or only oil-based (high-lead volume / total oil volume)
+4. **Exposure base** (`int_paint_program_base`) — uses the latest month's baseline and current market share from `int_lead_paint_market_share` to compute children born in lead-painted homes, then calculates how many children's exposure is averted under two scenarios:
    - **Potential**: assumes the full `lead_paint_reduction_percentage` is achieved
    - **To-date**: uses the actual observed reduction (`baseline − current` market share)
 5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting and probability weighting
@@ -134,13 +131,11 @@ All in the `example` dataset in `leep-data-system`:
 
 | Table | Description |
 |---|---|
-| `industry` | Paint volumes and manufacturer data by country (one row per manufacturer) |
 | `industry_full_raw` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
 | `counterfactual` | Counterfactual scenario assumptions per country |
 | `country_metadata` | Country classifications — income group, country code |
 | `indicators_long` | World Bank development indicators (ingested by Cloud Function) |
 | `paint` | Global model parameters — BLL impact, DALY rates, discount rates, etc. |
-| `country_paint_baseline` | Baseline lead paint market share per country before LEEP intervention (Google Sheet) |
 
 ## How to make changes
 
@@ -155,7 +150,7 @@ All in the `example` dataset in `leep-data-system`:
 2. Edit `.sqlx` files directly
 3. Open a PR against `main`
 
-Note: tables backed by Google Sheets (e.g. `country_paint_baseline`, `paint`, `industry_full_raw`) require Drive API access. The Google Sheet must be shared with the service account used by Dataform. To run tables locally, authenticate for Dataform access in your terminal by running
+Note: tables backed by Google Sheets (e.g. `paint`, `industry_full_raw`) require Drive API access. The Google Sheet must be shared with the service account used by Dataform. To run tables locally, authenticate for Dataform access in your terminal by running
 
 ```bash
 dataform init-creds
