@@ -16,3 +16,4 @@ SELECT
   DATE_TRUNC(CURRENT_DATE(), MONTH) AS partition_date
 FROM ${ref("stg_industry_full")}
 WHERE unique_id IS NOT NULL
+  AND NOT STARTS_WITH(unique_id, '#')
