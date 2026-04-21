@@ -40,7 +40,7 @@ SELECT
     WHEN country_has_water = 1 THEN
       SUM(CASE WHEN high_pb_l > 0 THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
     ELSE
-      SAFE_DIVIDE(SUM(high_pb_l), SUM(total_volume_l)))
+      SAFE_DIVIDE(SUM(high_pb_l), SUM(total_volume_l))
   END AS baseline_lead_paint_market_share,
   -- Current: excludes manufacturers who have completed reformulation
   CASE
@@ -49,7 +49,7 @@ SELECT
     ELSE
       SAFE_DIVIDE(
         SUM(CASE WHEN date_reformulation_complete IS NULL THEN high_pb_l ELSE 0 END),
-        SUM(oil_l)
+        SUM(total_volume_l)
       )
   END AS current_lead_paint_market_share
 FROM manufacturer_stats
