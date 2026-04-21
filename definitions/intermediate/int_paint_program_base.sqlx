@@ -15,7 +15,6 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        )
      ),
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
-     base AS (SELECT * FROM ${ref("stg_country_paint_baseline")}),
      pa   AS (SELECT * FROM ${ref("stg_paint")}),
 
      -- Step 1: join all sources, compute market share inputs
@@ -26,8 +25,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          cp.income_group,
          cp.annual_number_of_births,
          cp.urban_rate,
-         base.lead_paint_market_share                                                           AS baseline_lead_paint_market_share,
-         latest_lpm.lead_paint_market_share                                                     AS current_lead_paint_market_share,
+         latest_lpm.lead_paint_market_share                                                     AS baseline_lead_paint_market_share,
+         latest_lpm.lead_paint_market_share_adjusted                                            AS current_lead_paint_market_share,
          latest_lpm.year_month                                                                  AS market_share_year_month,
          cf.market_shift_year,
          cf.additional_years_before_market_shift_without_leep,
@@ -50,7 +49,6 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_name = cf.country
-       LEFT JOIN base                  ON cp.country_name = base.country
        CROSS JOIN pa
      ),
 
