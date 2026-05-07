@@ -9,7 +9,7 @@ DECLARE query STRING;
 
 SET query = (
   SELECT CONCAT(
-    'CREATE OR REPLACE VIEW `leep-data-system.example.stg_industry_full` AS SELECT ',
+    'CREATE OR REPLACE VIEW `leep-data-system.paint.stg_industry_full` AS SELECT ',
     STRING_AGG(
       CONCAT(
         '`', column_name, '` AS ',
@@ -25,9 +25,9 @@ SET query = (
         )
       )
     ),
-    ' FROM `leep-data-system.example.industry_full_raw`'
+    ' FROM `leep-data-system.paint.industry_full_raw`'
   )
-  FROM `leep-data-system.example.INFORMATION_SCHEMA.COLUMNS`
+  FROM `leep-data-system.paint.INFORMATION_SCHEMA.COLUMNS`
   WHERE table_name = 'industry_full_raw'
 );
 

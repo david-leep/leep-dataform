@@ -24,7 +24,7 @@ definitions/
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
 │   ├── stg_industry_full.sqlx        # Dynamic column cleaning for industry_full_raw (EXECUTE IMMEDIATE)
 │   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target)
-│   └── stg_paint.sqlx                # Global model parameters (BLL impact, DALYs, discount rates, etc.)
+│   └── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALYs, discount rates, etc.)
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
@@ -42,7 +42,7 @@ definitions/
  ─────────────                        ─────────────────
  industry_full_raw   ──┐              indicators_long  ──┐
  counterfactual      ──┤              country_metadata ──┤
- paint               ──┘                                 │
+ assumptions         ──┘                                 │
         │                                                │
         ▼                                                ▼
  sources/external_tables.sqlx        sources.js
@@ -54,7 +54,7 @@ definitions/
               ┌────────────────────────────┐
               │  stg_industry_full     ────│── dynamic column cleaning (EXECUTE IMMEDIATE)
               │  stg_counterfactual        │
-              │  stg_paint                 │
+              │  stg_assumptions           │
               │  stg_country           ───┐│
               │  stg_indicators_long   ───┘│
               └────────────────────────────┘
@@ -86,7 +86,7 @@ definitions/
  │  int_paint_program_base    │◄── int_country_profile
  │  (children averted,        │    int_lead_paint_market_share
  │   cbll_averted)            │    stg_counterfactual
- └────────────────────────────┘    stg_paint
+ └────────────────────────────┘    stg_assumptions
                  │
                  ▼  MARTS
  ┌────────────────────────────┐
@@ -127,15 +127,16 @@ This Dataform pipeline creates program-level estimates of impact for LEEP's pain
 
 ## Data sources (raw BigQuery tables)
 
-All in the `example` dataset in `leep-data-system`:
+Split across two datasets in `leep-data-system`:
 
-| Table | Description |
-|---|---|
-| `industry_full_raw` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
-| `counterfactual` | Counterfactual scenario assumptions per country |
-| `country_metadata` | Country classifications — income group, country code |
-| `indicators_long` | World Bank development indicators (ingested by Cloud Function) |
-| `paint` | Global model parameters — BLL impact, DALY rates, discount rates, etc. |
+| Table | Dataset | Description |
+|---|---|---|
+| `country_metadata` | `core` | Country classifications — income group, country code |
+| `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
+| `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
+| `counterfactual` | `paint` | Counterfactual scenario assumptions per country |
+| `country_paint_baseline` | `paint` | Baseline (pre-LEEP) lead paint market share per country |
+| `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, discount rates, etc. |
 
 ## How to make changes
 
@@ -150,7 +151,7 @@ All in the `example` dataset in `leep-data-system`:
 2. Edit `.sqlx` files directly
 3. Open a PR against `main`
 
-Note: tables backed by Google Sheets (e.g. `paint`, `industry_full_raw`) require Drive API access. The Google Sheet must be shared with the service account used by Dataform. To run tables locally, authenticate for Dataform access in your terminal by running
+Note: tables backed by Google Sheets (e.g. `assumptions`, `industry_full_raw`) require Drive API access. The Google Sheet must be shared with the service account used by Dataform. To run tables locally, authenticate for Dataform access in your terminal by running
 
 ```bash
 dataform init-creds

@@ -1,4 +1,4 @@
 defaultProject: leep-data-system
-defaultDataset: example
+defaultDataset: paint
 defaultAssertionDataset: dataform_assertions
 dataformCoreVersion: 3.0.42

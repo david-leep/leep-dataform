@@ -15,7 +15,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        )
      ),
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
-     pa   AS (SELECT * FROM ${ref("stg_paint")}),
+     pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (

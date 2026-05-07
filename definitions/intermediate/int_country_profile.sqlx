@@ -1,6 +1,7 @@
 config {
   type: "table",
-name: "int_country_profile",
+  name: "int_country_profile",
+  schema: "core",
   description: "LMIC countries with latest World Bank demographic indicators. Inner join filters to countries present in both country_metadata and indicators_long, and restricts to low/middle income countries only.",
   tags: ["intermediate"]
 }

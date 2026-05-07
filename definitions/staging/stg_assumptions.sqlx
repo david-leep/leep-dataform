@@ -1,6 +1,6 @@
 config {
   type: "table",
-  name: "stg_paint",
+  name: "stg_assumptions",
   tags: ["staging"]
 }
 
@@ -20,4 +20,4 @@ SELECT
   percentage_urban_homes_painted,
   percentage_rural_homes_painted
 FROM
-  ${ref("paint")}
+  ${ref("assumptions")}

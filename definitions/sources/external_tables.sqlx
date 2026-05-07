@@ -4,28 +4,28 @@ config {
   disabled: true
 }
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.counterfactual`
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.counterfactual`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/1xMp67BHAGJWqwOIQslr_V7yuLvlpEl9ISGY9zbDo_Qw/edit'],
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.paint`
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.assumptions`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/1vNDJpcBFYQEPbQSHo3813me2KgC_v_S3XZteI5hQDYY/edit'],
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.country_paint_baseline`
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.country_paint_baseline`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/1rvZrd7t7F7Q5phBF2ewrVTDTsZhtBwbIZkQPrUMQNtk/edit'],
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.example.industry_full_raw`
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.industry_full_raw`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/15_iXYG59jYJk6Psg9fSBgRlzX8dx1EucPQI78Pnjqh4/edit'],
