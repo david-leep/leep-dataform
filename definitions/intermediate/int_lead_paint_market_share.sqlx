@@ -36,6 +36,7 @@ SELECT
   year_month,
   country_total_volume,
   country_has_water,
+  -- Baseline: calculates the baseline lead paint market share based on most recent industry tracker data
   CASE
     WHEN country_has_water = 1 THEN
       SUM(CASE WHEN high_pb_l > 0 THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
