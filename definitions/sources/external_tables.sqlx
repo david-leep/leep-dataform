@@ -18,13 +18,6 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.country_paint_baseline`
-OPTIONS (
-  format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1rvZrd7t7F7Q5phBF2ewrVTDTsZhtBwbIZkQPrUMQNtk/edit'],
-  skip_leading_rows = 1
-);
-
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.industry_full_raw`
 OPTIONS (
   format = 'GOOGLE_SHEETS',

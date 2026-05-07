@@ -135,7 +135,6 @@ Split across two datasets in `leep-data-system`:
 | `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
 | `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
 | `counterfactual` | `paint` | Counterfactual scenario assumptions per country |
-| `country_paint_baseline` | `paint` | Baseline (pre-LEEP) lead paint market share per country |
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, discount rates, etc. |
 
 ## How to make changes
