@@ -113,6 +113,12 @@ dataform run --tags intermediate
 dataform run --tags marts
 ```
 
+Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on first run. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.
+
+```bash
+dataform run --tags intermediate --full-refresh  # first run only
+```
+
 ## Key calculations (paint pipeline)
 
 This Dataform pipeline creates program-level estimates of impact for LEEP's paint programs:
