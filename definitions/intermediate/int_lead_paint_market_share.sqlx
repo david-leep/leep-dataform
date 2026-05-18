@@ -11,6 +11,7 @@ WITH base AS (
     total_volume_l,
     leaded_paint_type,
     high_pb_l,
+    oil_l,
     date_reformulation_complete,
     FORMAT_DATE('%Y-%m', partition_date) AS year_month
   FROM ${ref("int_industry_full")}
@@ -25,6 +26,7 @@ manufacturer_stats AS (
     total_volume_l,
     leaded_paint_type,
     high_pb_l,
+    oil_l,
     date_reformulation_complete,
     MAX(CASE WHEN leaded_paint_type LIKE '%Water%' THEN 1 ELSE 0 END) OVER (PARTITION BY country_code, year_month) AS country_has_water,
     SUM(total_volume_l) OVER (PARTITION BY country_code, year_month) AS country_total_volume
@@ -41,7 +43,7 @@ SELECT
     WHEN country_has_water = 1 THEN
       SUM(CASE WHEN high_pb_l > 0 THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
     ELSE
-      SAFE_DIVIDE(SUM(high_pb_l), SUM(total_volume_l))
+      SAFE_DIVIDE(SUM(high_pb_l), SUM(oil_l))
   END AS baseline_lead_paint_market_share,
   -- Current: excludes manufacturers who have completed reformulation
   CASE
@@ -50,7 +52,7 @@ SELECT
     ELSE
       SAFE_DIVIDE(
         SUM(CASE WHEN date_reformulation_complete IS NULL THEN high_pb_l ELSE 0 END),
-        SUM(total_volume_l)
+        SUM(oil_l)
       )
   END AS current_lead_paint_market_share
 FROM manufacturer_stats
