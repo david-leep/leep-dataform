@@ -9,7 +9,7 @@ WITH base AS (
     SUBSTR(unique_id, 1, 3) AS country_code,
     unique_id,
     total_volume_l,
-    water_l,
+    leaded_paint_type,
     high_pb_l,
     date_reformulation_complete,
     FORMAT_DATE('%Y-%m', partition_date) AS year_month
@@ -23,10 +23,10 @@ manufacturer_stats AS (
     year_month,
     unique_id,
     total_volume_l,
-    water_l,
+    leaded_paint_type,
     high_pb_l,
     date_reformulation_complete,
-    MAX(CASE WHEN water_l > 0 THEN 1 ELSE 0 END) OVER (PARTITION BY country_code, year_month) AS country_has_water,
+    MAX(CASE WHEN leaded_paint_type LIKE '%Water%' THEN 1 ELSE 0 END) OVER (PARTITION BY country_code, year_month) AS country_has_water,
     SUM(total_volume_l) OVER (PARTITION BY country_code, year_month) AS country_total_volume
   FROM base
 )
