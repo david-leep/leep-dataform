@@ -1,0 +1,56 @@
+config {
+  type: "table",
+  name: "mart_manufacturer_detail",
+  schema: "paint",
+  description: "One row per manufacturer with current milestone status and volumes. Filtered to the current month snapshot. Excludes placeholder manufacturer IDs ending in 001, 002, or 003.",
+  tags: ["marts"]
+}
+
+WITH filtered AS (
+  SELECT
+    unique_id,
+    SPLIT(unique_id, '-')[OFFSET(0)] AS country_code,
+    high_pb_l,
+    total_volume_l,
+    date_engaged,
+    date_taking_steps,
+    date_making_significant_progress,
+    date_reformulation_complete,
+    date_of_repeat_paint_study_showing_lead_free
+  FROM ${ref("int_industry_full")}
+  WHERE partition_date = DATE_TRUNC(CURRENT_DATE(), MONTH)
+    AND NOT REGEXP_CONTAINS(unique_id, r'00[123]$')
+)
+
+SELECT
+  f.country_code,
+  cp.country_name,
+  f.unique_id,
+  f.high_pb_l,
+  f.total_volume_l,
+  f.date_engaged,
+  f.date_taking_steps,
+  f.date_making_significant_progress,
+  f.date_reformulation_complete,
+  f.date_of_repeat_paint_study_showing_lead_free,
+
+  -- Furthest milestone reached on or before today
+  CASE
+    WHEN f.date_of_repeat_paint_study_showing_lead_free <= CURRENT_DATE() THEN 'Confirmed lead-free'
+    WHEN f.date_reformulation_complete                  <= CURRENT_DATE() THEN 'Reformulation complete'
+    WHEN f.date_making_significant_progress             <= CURRENT_DATE() THEN 'Making significant progress'
+    WHEN f.date_taking_steps                            <= CURRENT_DATE() THEN 'Taking steps'
+    WHEN f.date_engaged                                 <= CURRENT_DATE() THEN 'Engaged'
+    ELSE NULL
+  END AS current_milestone,
+
+  CASE
+    WHEN f.date_engaged <= CURRENT_DATE()
+      THEN DATE_DIFF(CURRENT_DATE(), f.date_engaged, DAY)
+    ELSE NULL
+  END AS days_since_engaged
+
+FROM filtered f
+LEFT JOIN ${ref("int_country_profile")} cp
+  ON f.country_code = cp.country_code
+ORDER BY f.country_code, f.unique_id
