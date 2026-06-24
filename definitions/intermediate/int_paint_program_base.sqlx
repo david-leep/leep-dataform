@@ -50,8 +50,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_name = cf.country
-       LEFT JOIN dr                    ON dr.program = cp.country_code
-                                      AND dr.market_shift_year = cf.market_shift_year
+       LEFT JOIN dr                    ON dr.market_shift_year = cf.market_shift_year
        CROSS JOIN pa
      ),
 
