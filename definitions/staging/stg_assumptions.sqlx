@@ -14,8 +14,6 @@ SELECT
   number_of_years_spent_working,
   income_loss_percentage_per_iq_point,
   daly_to_income_factor,
-  health_dalys_discount_rate,
-  income_dalys_discount_rate,
   program_success_probability,
   percentage_urban_homes_painted,
   percentage_rural_homes_painted

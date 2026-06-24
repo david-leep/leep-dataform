@@ -16,6 +16,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
      ),
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
      pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
+     dr   AS (SELECT * FROM ${ref("stg_discount_rates")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (
@@ -38,8 +39,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          pa.number_of_years_spent_working,
          pa.income_loss_percentage_per_iq_point,
          pa.daly_to_income_factor,
-         pa.health_dalys_discount_rate,
-         pa.income_dalys_discount_rate,
+         dr.health_dalys_discount_rate,
+         dr.income_dalys_discount_rate,
          pa.program_success_probability,
          pa.percentage_urban_homes_painted,
          pa.percentage_rural_homes_painted,
@@ -49,6 +50,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_name = cf.country
+       LEFT JOIN dr                    ON dr.program = cp.country_code
+                                      AND dr.market_shift_year = cf.market_shift_year
        CROSS JOIN pa
      ),
 

@@ -1,0 +1,13 @@
+config {
+  type: "table",
+  name: "stg_discount_rates",
+  tags: ["staging"]
+}
+
+SELECT
+  program,
+  market_shift_year,
+  health_dalys_discount_rate,
+  income_dalys_discount_rate
+FROM
+  ${ref({schema: "core", name: "discount_rates"})}
