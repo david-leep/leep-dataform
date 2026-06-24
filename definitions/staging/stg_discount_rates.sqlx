@@ -10,4 +10,4 @@ SELECT
   health_dalys_discount_rate,
   income_dalys_discount_rate
 FROM
-  ${ref({schema: "core", name: "discount_rates"})}
+  `leep-data-system.core.discount_rates`
