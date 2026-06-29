@@ -72,6 +72,13 @@ SELECT
   cbll_averted_potential,
   cbll_averted_to_date,
 
+  CASE
+    WHEN potential_dalys_discounted > 100000 THEN 'A'
+    WHEN potential_dalys_discounted < 10000  THEN 'D'
+    WHEN potential_dalys_discounted < 50000  THEN 'C'
+    ELSE 'B'
+  END AS tier,
+
   -- ── POTENTIAL IMPACT ───────────────────────────────────────────────────────
   potential_health_dalys                                    AS potential_health_dalys_averted,
   potential_income_dalys                                    AS potential_daly_equivalent_income_loss,
