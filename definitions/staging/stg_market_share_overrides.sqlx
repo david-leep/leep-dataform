@@ -1,0 +1,11 @@
+config {
+  type: "table",
+  name: "stg_market_share_overrides",
+  tags: ["staging"]
+}
+
+SELECT
+  country_name,
+  market_share_assumption
+FROM ${ref("market_share_overrides")}
+WHERE country_name IS NOT NULL

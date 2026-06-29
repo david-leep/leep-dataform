@@ -17,6 +17,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
      pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
      dr   AS (SELECT * FROM ${ref("stg_discount_rates")}),
+     mso  AS (SELECT * FROM ${ref("stg_market_share_overrides")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (
@@ -26,8 +27,12 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          cp.income_group,
          cp.annual_number_of_births,
          cp.urban_rate,
-         latest_lpm.baseline_lead_paint_market_share,
-         latest_lpm.current_lead_paint_market_share,
+         -- Use override when no industry tracker data exists; override countries have no to-date impact
+         COALESCE(latest_lpm.baseline_lead_paint_market_share, mso.market_share_assumption)    AS baseline_lead_paint_market_share,
+         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
+              THEN latest_lpm.current_lead_paint_market_share
+              ELSE NULL
+         END                                                                                    AS current_lead_paint_market_share,
          latest_lpm.year_month                                                                  AS market_share_year_month,
          cf.program,
          cf.status,
@@ -54,6 +59,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_name = cf.country
        LEFT JOIN dr                    ON dr.market_shift_year = cf.market_shift_year
+       LEFT JOIN mso                   ON cp.country_name = mso.country_name
        CROSS JOIN pa
      ),
 

@@ -32,3 +32,10 @@ OPTIONS (
   uris = ['https://docs.google.com/spreadsheets/d/1Yb910LqJIYw00n3gev_otvR6Td88czZ3ZWpGhHOmeM4/edit'],
   skip_leading_rows = 1
 );
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.market_share_overrides`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1qmLGqiRC_8T9niFeIey_-kbBE_RYE2x2ikzznywq2sQ/edit'],
+  skip_leading_rows = 1
+);
