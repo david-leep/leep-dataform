@@ -23,8 +23,10 @@ definitions/
 │   ├── stg_country.sqlx              # LMIC country list filtered from country_metadata
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
 │   ├── stg_industry_full.sqlx        # Dynamic column cleaning for industry_full_raw (EXECUTE IMMEDIATE)
-│   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target)
-│   └── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALYs, discount rates, etc.)
+│   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target, program metadata)
+│   ├── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALY rates, etc.)
+│   ├── stg_discount_rates.sqlx       # Health and income DALY discount rates by market_shift_year
+│   └── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
@@ -40,9 +42,11 @@ definitions/
 ```
  GOOGLE SHEETS                        BIGQUERY (native)
  ─────────────                        ─────────────────
- industry_full_raw   ──┐              indicators_long  ──┐
- counterfactual      ──┤              country_metadata ──┤
- assumptions         ──┘                                 │
+ industry_full_raw        ──┐         indicators_long  ──┐
+ counterfactual           ──┤         country_metadata ──┤
+ assumptions              ──┤                            │
+ discount_rates           ──┤                            │
+ market_share_overrides   ──┘                            │
         │                                                │
         ▼                                                ▼
  sources/external_tables.sqlx        sources.js
@@ -51,13 +55,15 @@ definitions/
         └──────────────────┬──────────────────────────── ┘
                            │
                            ▼  STAGING
-              ┌────────────────────────────┐
-              │  stg_industry_full     ────│── dynamic column cleaning (EXECUTE IMMEDIATE)
-              │  stg_counterfactual        │
-              │  stg_assumptions           │
-              │  stg_country           ───┐│
-              │  stg_indicators_long   ───┘│
-              └────────────────────────────┘
+              ┌────────────────────────────────────┐
+              │  stg_industry_full        ──────── │── dynamic column cleaning
+              │  stg_counterfactual                │
+              │  stg_assumptions                   │
+              │  stg_discount_rates                │
+              │  stg_market_share_overrides        │
+              │  stg_country              ───┐     │
+              │  stg_indicators_long      ───┘     │
+              └────────────────────────────────────┘
                            │
                            ▼  INTERMEDIATE
               ┌────────────────────────────┐
@@ -82,18 +88,18 @@ definitions/
  └────────────────────────────┘  └────────────────────────────┘
                  │
                  ▼
- ┌────────────────────────────┐
- │  int_paint_program_base    │◄── int_country_profile
- │  (children averted,        │    int_lead_paint_market_share
- │   cbll_averted)            │    stg_counterfactual
- └────────────────────────────┘    stg_assumptions
-                 │
-                 ▼  MARTS
- ┌────────────────────────────┐
+ ┌──────────────────────────────────┐
+ │  int_paint_program_base          │◄── int_country_profile
+ │  (children averted, cbll_averted)│    int_lead_paint_market_share
+ └──────────────────────────────────┘    stg_counterfactual
+                 │                       stg_assumptions
+                 ▼  MARTS               stg_discount_rates
+ ┌────────────────────────────┐          stg_market_share_overrides
  │  paint_summary_by_country  │
  │  (DALYs averted,           │
  │   discounted,              │
- │   probability-weighted)    │
+ │   probability-weighted,    │
+ │   tier A–D)                │
  └────────────────────────────┘
 ```
 
@@ -129,7 +135,8 @@ This Dataform pipeline creates program-level estimates of impact for LEEP's pain
 4. **Exposure base** (`int_paint_program_base`) — uses the latest month's baseline and current market share from `int_lead_paint_market_share` to compute children born in lead-painted homes, then calculates how many children's exposure is averted under two scenarios:
    - **Potential**: assumes the full `lead_paint_reduction_percentage` is achieved
    - **To-date**: uses the actual observed reduction (`baseline − current` market share)
-5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting and probability weighting
+   - For countries without industry tracker data, `baseline_lead_paint_market_share` falls back to `stg_market_share_overrides`; these countries have no to-date impact (current market share is set to NULL). All joins are on `country_code` to avoid country name mismatches.
+5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting (`stg_discount_rates`) and probability weighting. Includes `program`, `status`, `source_of_funding` columns from the counterfactual and a `tier` classification (A–D) based on `potential_dalys_discounted`.
 
 ## Data sources (raw BigQuery tables)
 
@@ -140,24 +147,11 @@ Split across two datasets in `leep-data-system`:
 | `country_metadata` | `core` | Country classifications — income group, country code |
 | `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
 | `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
-| `counterfactual` | `paint` | Counterfactual scenario assumptions per country |
-| `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, discount rates, etc. |
+| `counterfactual` | `paint` | Counterfactual scenario assumptions per country — market shift timing, reduction target, program metadata (program, status, source_of_funding) |
+| `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
+| `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
+| `market_share_overrides` | `paint` | Manual baseline market share estimates for countries without industry tracker data |
 
-## How to make changes
+## Contributing
 
-**In the Dataform UI (recommended for non-developers):**
-1. Open [Dataform in GCP Console](https://console.cloud.google.com/bigquery/dataform)
-2. Open your personal workspace
-3. Edit the `.sqlx` files directly
-4. Click "Commit & push" when done — a developer will review and merge
-
-**In VS Code (for developers):**
-1. Clone this repo
-2. Edit `.sqlx` files directly
-3. Open a PR against `main`
-
-Note: tables backed by Google Sheets (e.g. `assumptions`, `industry_full_raw`) require Drive API access. The Google Sheet must be shared with the service account used by Dataform. To run tables locally, authenticate for Dataform access in your terminal by running
-
-```bash
-dataform init-creds
-```
+See [CONTRIBUTING.md](CONTRIBUTING.md) for step-by-step instructions on adding tables, changing calculations, testing changes, and viewing results in Looker Studio.
