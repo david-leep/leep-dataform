@@ -1,6 +1,7 @@
 config {
   type: "table",
   name: "stg_discount_rates",
+  schema: "core",
   tags: ["staging"]
 }
 

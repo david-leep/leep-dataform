@@ -25,3 +25,10 @@ OPTIONS (
   sheet_range = 'All Tracker Data',
   skip_leading_rows = 1
 );
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.discount_rates`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1Yb910LqJIYw00n3gev_otvR6Td88czZ3ZWpGhHOmeM4/edit'],
+  skip_leading_rows = 1
+);
