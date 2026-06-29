@@ -9,6 +9,7 @@ config {
 WITH filtered AS (
   SELECT
     unique_id,
+    name,
     SPLIT(unique_id, '-')[OFFSET(0)] AS country_code,
     high_pb_l,
     total_volume_l,
@@ -26,6 +27,7 @@ SELECT
   f.country_code,
   cp.country_name,
   f.unique_id,
+  f.name,
   f.high_pb_l,
   f.total_volume_l,
   f.date_engaged,
