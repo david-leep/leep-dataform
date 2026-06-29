@@ -5,9 +5,7 @@ config {
 }
 
 SELECT
-  country,
-  market_shift_year,
-  additional_years_before_market_shift_without_leep,
-  lead_paint_reduction_percentage
+  *
 FROM
   ${ref("counterfactual")}
+WHERE country_name IS NOT NULL
