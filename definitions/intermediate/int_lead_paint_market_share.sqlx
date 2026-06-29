@@ -77,4 +77,4 @@ SELECT
   cf.source_of_funding
 FROM market_share ms
 LEFT JOIN country_map cm ON ms.country_code = cm.country_code
-LEFT JOIN ${ref("stg_counterfactual")} cf ON cm.country_name = cf.country
+LEFT JOIN ${ref("stg_counterfactual")} cf ON cm.country_code = cf.country_code
