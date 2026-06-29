@@ -31,29 +31,50 @@ manufacturer_stats AS (
     MAX(CASE WHEN leaded_paint_type LIKE '%Water%' THEN 1 ELSE 0 END) OVER (PARTITION BY country_code, year_month) AS country_has_water,
     SUM(total_volume_l) OVER (PARTITION BY country_code, year_month) AS country_total_volume
   FROM base
+),
+
+market_share AS (
+  SELECT
+    country_code,
+    year_month,
+    country_total_volume,
+    country_has_water,
+    -- Baseline: calculates the baseline lead paint market share based on most recent industry tracker data
+    CASE
+      WHEN country_has_water = 1 THEN
+        SUM(CASE WHEN high_pb_l > 0 THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
+      ELSE
+        SAFE_DIVIDE(SUM(high_pb_l), SUM(oil_l))
+    END AS baseline_lead_paint_market_share,
+    -- Current: excludes manufacturers who have completed reformulation
+    CASE
+      WHEN country_has_water = 1 THEN
+        SUM(CASE WHEN high_pb_l > 0 AND date_reformulation_complete IS NULL THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
+      ELSE
+        SAFE_DIVIDE(
+          SUM(CASE WHEN date_reformulation_complete IS NULL THEN high_pb_l ELSE 0 END),
+          SUM(oil_l)
+        )
+    END AS current_lead_paint_market_share
+  FROM manufacturer_stats
+  GROUP BY country_code, year_month, country_has_water, country_total_volume
+),
+
+country_map AS (
+  SELECT country_code, country_name
+  FROM ${ref("int_country_profile")}
 )
 
 SELECT
-  country_code,
-  year_month,
-  country_total_volume,
-  country_has_water,
-  -- Baseline: calculates the baseline lead paint market share based on most recent industry tracker data
-  CASE
-    WHEN country_has_water = 1 THEN
-      SUM(CASE WHEN high_pb_l > 0 THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
-    ELSE
-      SAFE_DIVIDE(SUM(high_pb_l), SUM(oil_l))
-  END AS baseline_lead_paint_market_share,
-  -- Current: excludes manufacturers who have completed reformulation
-  CASE
-    WHEN country_has_water = 1 THEN
-      SUM(CASE WHEN high_pb_l > 0 AND date_reformulation_complete IS NULL THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
-    ELSE
-      SAFE_DIVIDE(
-        SUM(CASE WHEN date_reformulation_complete IS NULL THEN high_pb_l ELSE 0 END),
-        SUM(oil_l)
-      )
-  END AS current_lead_paint_market_share
-FROM manufacturer_stats
-GROUP BY country_code, year_month, country_has_water, country_total_volume
+  ms.country_code,
+  ms.year_month,
+  ms.country_total_volume,
+  ms.country_has_water,
+  ms.baseline_lead_paint_market_share,
+  ms.current_lead_paint_market_share,
+  cf.program,
+  cf.status,
+  cf.source_of_funding
+FROM market_share ms
+LEFT JOIN country_map cm ON ms.country_code = cm.country_code
+LEFT JOIN ${ref("stg_counterfactual")} cf ON cm.country_name = cf.country
