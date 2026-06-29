@@ -43,7 +43,7 @@ SELECT
     WHEN f.date_making_significant_progress             <= CURRENT_DATE() THEN 'Making significant progress'
     WHEN f.date_taking_steps                            <= CURRENT_DATE() THEN 'Taking steps'
     WHEN f.date_engaged                                 <= CURRENT_DATE() THEN 'Engaged'
-    ELSE NULL
+    ELSE 'Not engaged'
   END AS current_milestone,
 
   CASE
