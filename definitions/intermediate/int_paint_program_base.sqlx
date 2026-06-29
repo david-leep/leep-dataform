@@ -57,9 +57,9 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          pa.percentage_repainted_homes_per_year
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
-       LEFT JOIN cf                    ON cp.country_name = cf.country
+       LEFT JOIN cf                    ON cp.country_code = cf.country_code
        LEFT JOIN dr                    ON dr.market_shift_year = cf.market_shift_year
-       LEFT JOIN mso                   ON cp.country_name = mso.country_name
+       LEFT JOIN mso                   ON cp.country_code = mso.country_code
        CROSS JOIN pa
      ),
 

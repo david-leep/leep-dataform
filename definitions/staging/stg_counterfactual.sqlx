@@ -8,4 +8,4 @@ SELECT
   *
 FROM
   ${ref("counterfactual")}
-WHERE country_name IS NOT NULL
+WHERE country_code IS NOT NULL

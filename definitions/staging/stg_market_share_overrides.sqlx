@@ -6,6 +6,7 @@ config {
 
 SELECT
   country_name,
+  country_code,
   market_share_assumption
 FROM ${ref("market_share_overrides")}
 WHERE country_name IS NOT NULL
