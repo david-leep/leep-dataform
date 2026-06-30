@@ -25,6 +25,60 @@ Tables backed by Google Sheets require Drive API access. The sheet must be share
 
 ---
 
+## Working with Git in the Dataform workspace
+
+Dataform's built-in Git integration mirrors a standard branch-based workflow. Each workspace in the Dataform UI corresponds to a branch in the GitHub repo. The steps below cover how to set up, sync, and submit changes from the browser without needing a local clone.
+
+### 1. Create your own workspace
+
+A workspace is a personal branch where your edits are isolated until you're ready to merge.
+
+1. Go to [Dataform in the GCP Console](https://console.cloud.google.com/bigquery/dataform)
+2. Select the `leep-dataform` repository
+3. Click **Create workspace**
+4. Name it something like `yourname-feature-description` (e.g. `david-add-water-source`) — this becomes the branch name in GitHub
+
+Your workspace starts as a copy of `main` at the time you create it.
+
+### 2. Pull changes from main into your workspace
+
+If `main` has moved on since you created your workspace, sync it before making further changes to avoid conflicts.
+
+1. Open your workspace in the Dataform UI
+2. Click the **Git** icon (branch icon) in the left sidebar
+3. Click **Pull from remote** — this fetches and merges the latest `main` into your workspace branch
+
+If there are conflicts, Dataform will surface them in the UI. Resolve them by editing the affected files, then commit the resolution.
+
+### 3. Edit files and commit
+
+1. Make your changes in the Dataform file editor
+2. Click the **Git** icon in the left sidebar — changed files appear under "Uncommitted changes"
+3. Review the diff for each file
+4. Enter a short, descriptive commit message (e.g. `Add stg_water_source staging table`)
+5. Click **Commit** — this commits to your workspace branch (not yet to `main`)
+
+Commit frequently — small commits are easier to review and to revert if something breaks.
+
+### 4. Push your branch and open a pull request
+
+Once your changes are ready for review:
+
+1. In the Git panel, click **Push to remote** — this pushes your workspace branch to GitHub
+2. Go to the [leep-dataform GitHub repo](https://github.com/leadelimination/leep-dataform)
+3. GitHub will prompt you to open a pull request for your recently pushed branch — click **Compare & pull request**
+4. Write a short description of what changed and why
+5. Request a review from a developer; do not merge your own PR unless it's trivial
+
+### 5. After your PR is merged
+
+Once merged into `main`, your workspace branch is stale. You have two options:
+
+- **Reuse the workspace**: pull from remote (step 2 above) to bring your branch up to date with the newly merged `main`
+- **Create a fresh workspace**: for the next piece of work, create a new workspace branching from the updated `main`
+
+---
+
 ## Adding a new Google Sheet source
 
 Every new Google Sheet source needs three things:

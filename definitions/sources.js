@@ -1,21 +1,25 @@
 declare({
   schema: "core",
-  name: "country_metadata"
+  name: "country_metadata",
+  description: "World Bank country metadata. One row per country, including country_code and income_group. Used to filter for LMICs and join country context across pipelines."
 });
 
 declare({
   schema: "core",
-  name: "indicators_long"
+  name: "indicators_long",
+  description: "World Bank development indicators in long format. One row per country, indicator, and year. Supplies birth rate, total population, and urban population percentage to the impact model."
 });
 
 declare({
   schema: "paint",
-  name: "counterfactual"
+  name: "counterfactual",
+  description: "Country-level program metadata for LEEP's paint programme. One row per country, including engagement status, source of funding, and the counterfactual scenario assumed in the impact model."
 });
 
 declare({
   schema: "paint",
-  name: "assumptions"
+  name: "assumptions",
+  description: "Global model parameters shared across the paint impact calculation (e.g. DALY weights, paint application rates, income loss coefficients). Single-row lookup table — one value per parameter."
 });
 
 declare({
