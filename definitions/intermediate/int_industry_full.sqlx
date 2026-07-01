@@ -12,8 +12,7 @@ pre_operations {
 }
 
 SELECT
-  * EXCEPT(alpha_3_code),
-  alpha_3_code AS country_code,
+  *,
   DATE_TRUNC(CURRENT_DATE(), MONTH) AS partition_date
 FROM ${ref("stg_industry_full")}
 WHERE unique_id IS NOT NULL
