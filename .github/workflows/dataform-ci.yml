@@ -1,0 +1,44 @@
+name: Dataform CI
+
+on:
+  pull_request:
+
+jobs:
+  # Stage 1 — no secrets needed. Catches broken refs, syntax errors,
+  # missing source declarations. Runs on every PR from day one.
+  compile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli@3.0.42
+      - name: Compile project
+        run: dataform compile
+
+  # Stage 2 — executes the full pipeline into per-run sandbox datasets
+  # (paint_ci etc.) and runs assertions. Requires:
+  #   1. GitHub secret GCP_SA_KEY (service account JSON key)
+  #   2. Repo variable DATAFORM_CI_RUN set to 'true' (Settings > Secrets
+  #      and variables > Actions > Variables) — flips this job on.
+  run-sandbox:
+    if: ${{ vars.DATAFORM_CI_RUN == 'true' }}
+    needs: compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli@3.0.42
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Write Dataform credentials (ADC mode)
+        run: echo '{"projectId":"leep-data-system","location":"EU"}' > .df-credentials.json
+      - name: Run pipeline into CI sandbox
+        run: dataform run --schema-suffix ci
