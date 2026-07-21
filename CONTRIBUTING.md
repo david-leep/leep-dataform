@@ -4,6 +4,8 @@ This guide covers how to make changes to the pipeline — adding tables, editing
 
 **Two ways to contribute.** The **Claude Code + VS Code workflow** below is the default and the one we train on — you'll use it for essentially everything. The **Dataform UI workflow** further down is a lighter-weight fallback for quick edits when you can't or don't want to open your laptop's editor. Both end the same way: a pull request that David reviews before anything reaches production.
 
+**`main` is protected.** You cannot push to it directly, and PRs need at least one approving review before they can merge — this applies to everyone, with no exceptions.
+
 ---
 
 ## How to think about your job here
