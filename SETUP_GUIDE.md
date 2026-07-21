@@ -4,7 +4,7 @@
 
 **How long:** About 60–90 minutes the first time, most of it waiting for installs. Do it before Session 3, not during it. If you get stuck, post in **#data-system** — getting stuck is expected and fine.
 
-**The mental model, in one paragraph:** The pipeline is a set of instructions (written in a language called SQL) that turn our raw Google Sheets into the impact numbers on the dashboards. Those instructions live in a shared online folder on GitHub called `leep-dataform`. You'll copy that folder onto your laptop, open it in an editor called VS Code, and use an AI assistant called Claude Code to read and change the instructions. When you're done, you propose your change for review — nothing you do can affect the real numbers until it's reviewed and approved. That safety net is the whole point.
+**The mental model, in one paragraph:** The pipeline is a set of instructions (written in a language called SQL) that turn our raw Google Sheets into the impact numbers on the dashboards. Those instructions live in a shared online folder on GitHub called `leep-dataform`. You'll copy that folder onto your laptop, open it in an editor called VS Code, and use an AI assistant called Claude Code to read and change the instructions. When you're done, you propose your change for review — nothing you do can affect the real numbers until it's reviewed and approved.
 
 ---
 

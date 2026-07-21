@@ -2,106 +2,125 @@
 
 This guide covers how to make changes to the pipeline — adding tables, editing calculations, testing, and viewing results.
 
-**`main` is protected.** You cannot push to it directly, and PRs need at least one approving review before they can merge — this applies to everyone, with no exceptions. All work happens on your own branch (in the Dataform UI, your workspace *is* your branch). Never work directly on `main`.
+**Two ways to contribute.** The **Claude Code + VS Code workflow** below is the default and the one we train on — you'll use it for essentially everything. The **Dataform UI workflow** further down is a lighter-weight fallback for quick edits when you can't or don't want to open your laptop's editor. Both end the same way: a pull request that David reviews before anything reaches production.
 
-## Editing in the Dataform UI (recommended for non-developers)
-
-1. Open [Dataform in GCP Console](https://console.cloud.google.com/bigquery/dataform)
-2. Open your personal workspace — this is your branch; you never edit on `main`
-3. Before starting new work, **pull from remote** (see "Working with Git in the Dataform workspace" below) so you're building on the latest `main`, not a stale copy
-4. Edit `.sqlx` files directly in the browser
-5. Click **Commit & push** when done — a developer will review and merge
-
-## Editing in VS Code (for developers)
-
-1. Clone this repo
-2. Create your own branch off `main` — never commit directly on `main`, it will be rejected:
-   ```bash
-   git checkout main
-   git pull origin main
-   git checkout -b yourname-short-description
-   ```
-3. Edit `.sqlx` files directly
-4. Push your branch and open a PR against `main`
-
-### Keeping your branch up to date
-
-If `main` moves while you're working (someone else's PR merges), sync before you keep going — otherwise your PR will conflict or your local testing will be against a stale `main`:
-
-```bash
-git fetch origin
-git rebase origin/main   # or: git merge origin/main
-```
-
-Do this before opening a PR, and again if `main` moves further while your PR is still open for review.
-
-To run tables locally, authenticate first:
-
-```bash
-dataform init-creds
-```
-
-Tables backed by Google Sheets require Drive API access. The sheet must be shared with the Dataform service account.
+**`main` is protected.** You cannot push to it directly, and PRs need at least one approving review before they can merge — this applies to everyone, with no exceptions.
 
 ---
 
-## Working with Git in the Dataform workspace
+## How to think about your job here
 
-Dataform's built-in Git integration mirrors a standard branch-based workflow. Each workspace in the Dataform UI corresponds to a branch in the GitHub repo. The steps below cover how to set up, sync, and submit changes from the browser without needing a local clone.
+Most of us editing this repo are researchers, not software engineers, and that's fine — the workflow is built around it. A few principles matter more than any command:
 
-### 1. Create your own workspace
+- **You are not here to write SQL from scratch.** Claude Code writes and edits the SQL. Your job is to *direct* it, *read* what it produces, and *decide* whether it's right. The valuable skill is judgment, not syntax.
+- **Ask good questions.** Before changing anything, understand it. "Explain this file in plain English", "where is market share calculated?", "what would happen to Nigeria's number if I change this?" are the moves that make you effective. See the prompt patterns below.
+- **Verify everything.** Claude Code is confident even when it's wrong. Never trust an explanation or a change without checking it against the code and against the actual numbers (the testing ladder does this). A change isn't done because Claude says so — it's done when you've seen it produce the right output.
+- **Stick to the rules.** The golden rules (never edit `main`, always `--schema-suffix`, compile after every edit, never open a PR with a line you can't explain) exist so that a wrong change can't reach production. They're also encoded in `CLAUDE.md`, so Claude Code already knows them.
+- **Keep changes small.** One column, one calculation, one source at a time. Small diffs are easy to review, easy to verify, and easy to revert if something's off.
 
-A workspace is a personal branch where your edits are isolated until you're ready to merge.
+If you can find the relevant calculation, ask Claude Code to change it, run the ladder, and read the diff — you can contribute. That's the whole job.
 
-1. Go to [Dataform in the GCP Console](https://console.cloud.google.com/bigquery/dataform)
-2. Select the `leep-dataform` repository
-3. Click **Create workspace**
-4. Name it something like `yourname-feature-description` (e.g. `david-add-water-source`) — this becomes the branch name in GitHub
+---
 
-Your workspace starts as a copy of `main` at the time you create it.
+## The Claude Code + VS Code workflow (default)
 
-### 2. Pull changes from main into your workspace
+> **First time?** Follow `SETUP_GUIDE.md` first — it installs everything (VS Code, Git, Node, Dataform, gcloud, Claude Code) and walks you through your very first change. This section is the reference you'll come back to once you're set up.
 
-If `main` has moved on since you created your workspace, sync it before making further changes to avoid conflicts.
+You run Claude Code (`claude`) from **inside** the `leep-dataform` folder so it can see all the files and already knows our rules from `CLAUDE.md`. It does the typing — git commands, SQL, config blocks — and you direct and check it.
 
-1. Open your workspace in the Dataform UI
-2. Click the **Git** icon (branch icon) in the left sidebar
-3. Click **Pull from remote** — this fetches and merges the latest `main` into your workspace branch
+### The change loop, start to finish
 
-If there are conflicts, Dataform will surface them in the UI. Resolve them by editing the affected files, then commit the resolution.
+Every change follows the same seven steps. Claude Code can do steps 1, 3, 6, and 7 for you if you ask; you own the judgment in steps 2, 4, and 5.
 
-### 3. Edit files and commit
+**1. Start fresh and make your own branch.** A branch is your private copy where edits are isolated until reviewed. Never edit `main`.
 
-1. Make your changes in the Dataform file editor
-2. Click the **Git** icon in the left sidebar — changed files appear under "Uncommitted changes"
-3. Review the diff for each file
-4. Enter a short, descriptive commit message (e.g. `Add stg_water_source staging table`)
-5. Click **Commit** — this commits to your workspace branch (not yet to `main`)
+```bash
+git checkout main && git pull
+git checkout -b yourname-short-description
+```
 
-Commit frequently — small commits are easier to review and to revert if something breaks.
+You can also just ask: *"Start me a new branch called sarah-add-region-column."*
 
-### 4. Push your branch and open a pull request
+**2. Understand before you change.** Ask Claude Code to orient you first:
 
-Once your changes are ready for review:
+> Explain what `definitions/marts/paint_country_summary.sqlx` does in plain English, and show me where `tier` is calculated.
 
-1. In the Git panel, click **Push to remote** — this pushes your workspace branch to GitHub
-2. Go to the [leep-dataform GitHub repo](https://github.com/leadelimination/leep-dataform)
-3. GitHub will prompt you to open a pull request for your recently pushed branch — click **Compare & pull request**
-4. Write a short description of what changed and why
-5. Request a review from a developer; do not merge your own PR unless it's trivial
+Read the answer. If you can't yet say what the file does in a sentence, keep asking. This is the step that prevents most mistakes.
 
-### 5. After your PR is merged
+**3. Make the change with Claude Code.** Describe *what* you want in plain language and let it write the SQL:
 
-Once merged into `main`, your workspace branch is stale. You have two options:
+> Add a `region` column from `stg_country` through to the mart. Show me each file you'll change and why before you edit.
 
-- **Reuse the workspace**: pull from remote (step 2 above) to bring your branch up to date with the newly merged `main`
-- **Create a fresh workspace**: for the next piece of work, create a new workspace branching from the updated `main`
+Ask it to show its plan first, read it, then let it edit. It follows our conventions (join on `country_code`, explicit column lists, no `SELECT *` except `stg_counterfactual`) because they're in `CLAUDE.md`.
+
+**4. Compile — after every edit.**
+
+```bash
+dataform compile
+```
+
+Zero risk, no credentials, seconds. Catches broken references and syntax errors. If it errors, paste the error to Claude Code and ask it to fix — then compile again.
+
+**5. Test in your sandbox and verify the numbers.** Work the full **testing ladder** (see [Testing changes](#testing-changes) below): a `--schema-suffix` run into your private dataset, assertions, and the diff-the-data check comparing your result to production. **This is where verification happens** — reading that diff and judging whether it matches what you intended is the core skill. Claude Code writes the check query; you read the result.
+
+**6. Save your work (commit).**
+
+```bash
+git add -A && git commit -m "Add region column to mart"
+```
+
+Or: *"Commit this with a short message describing what changed."* Commit in small steps.
+
+**7. Push and open a pull request.**
+
+```bash
+git push -u origin yourname-short-description
+```
+
+Then open the PR on GitHub (the push prints a link), write one or two sentences on what changed and why, **paste your diff-the-data result into the description**, and request David as reviewer. An automatic compile check runs on your PR. You cannot merge your own PR — that's the safety guarantee.
+
+### Prompt patterns worth memorising
+
+You don't need to memorise git or SQL — you need a handful of ways to ask. Keep these handy:
+
+| Goal | Ask Claude Code… |
+|------|------------------|
+| Orient yourself | "Explain this file in plain English." / "Where is `<metric>` calculated?" |
+| Find dependencies | "Which files reference `stg_counterfactual`?" / "If I change this column, what downstream files break?" |
+| Understand logic | "What does the water/oil branching in `int_lead_paint_market_share` do?" / "Why might a market share exceed 1?" |
+| Make a change | "Add column X from sheet Y to the mart. Show me the plan before editing." |
+| Verify | "Write a query comparing my sandbox mart to prod and show what changed." / "Does this output look right for Nigeria?" |
+| Debug | "This run failed with `<error>` — what does it mean and how do I fix it?" |
+
+### Rerunning the pipeline
+
+To refresh tables into your sandbox after a change (or just to see current output), run with your suffix — **never** a plain `dataform run`:
+
+```bash
+dataform run --schema-suffix yourname --actions paint_country_summary
+```
+
+You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect, still safe as long as it targets your workspace, not production.
+
+---
+
+## Alternative: editing in the Dataform UI
+
+For a quick edit when you don't want to open VS Code, Dataform's browser UI mirrors the same branch-based workflow. Each **workspace** in the UI is a branch in GitHub, so nothing you do here touches `main` until it's reviewed. You don't get Claude Code's help writing or checking the SQL, so this path suits small, well-understood edits.
+
+1. **Create your workspace.** In [Dataform in the GCP Console](https://console.cloud.google.com/bigquery/dataform), select the `leep-dataform` repository → **Create workspace** → name it `yourname-feature-description`. It starts as a copy of `main`.
+2. **Sync with main.** If `main` has moved on, open the **Git** panel (branch icon, left sidebar) → **Pull from remote** before editing, to avoid conflicts.
+3. **Edit and commit.** Change `.sqlx` files in the browser editor. In the Git panel, review the diff for each changed file, enter a short message, and **Commit** (to your workspace branch, not `main`). Commit frequently.
+4. **Push and open a PR.** Click **Push to remote**, then go to the [GitHub repo](https://github.com/david-leep/leep-dataform) and click **Compare & pull request**. Describe what changed, request review from David, and don't merge your own PR.
+5. **After merge**, either **Pull from remote** to reuse the workspace, or create a fresh one for your next change.
+
+You can run the pipeline into your sandbox from the UI's **Start execution** button — always confirm it targets your workspace, never production.
 
 ---
 
 ## Adding a new Google Sheet source
 
-Every new Google Sheet source needs three things:
+The most common way you'll extend the system (e.g. adding a new M&E or impact source) is adding a Google Sheet. Ask Claude Code to do all three steps — *"Add a new source `stg_water_tracker` from this sheet: <url>"* — and it will follow this pattern. Understanding the three touch-points lets you check its work:
 
 **1. Create the external table** in `definitions/sources/external_tables.sqlx`:
 
@@ -114,7 +133,7 @@ OPTIONS (
 );
 ```
 
-Run this file manually in BigQuery or via the Dataform UI after adding it. The file is tagged `disabled: true` so it does not run automatically on every pipeline execution.
+Run this file manually once in BigQuery or via the Dataform UI after adding it. The file is tagged `disabled: true` so it does not run automatically on every pipeline execution. **Also share the sheet with the account running the pipeline**, or the external table can't read it.
 
 **2. Declare the source** in `definitions/sources.js`:
 
@@ -151,8 +170,8 @@ Use explicit column names rather than `SELECT *` to make schema changes visible.
 ## Adding a column to an existing table
 
 1. If the column comes from a source (Google Sheet), add it to the staging file's `SELECT` list.
-2. Trace it downstream: find every file that references that staging table and has an explicit column list. Add the column there too.
-3. Use `grep -r "ref(\"stg_<table_name>\")"` to find all dependents quickly.
+2. Trace it downstream: find every file that references that staging table and has an explicit column list. Add the column there too. (Ask Claude Code: *"Which files do I need to touch to carry this column to the mart?"*)
+3. To find dependents quickly: `grep -r "ref(\"stg_<table_name>\")"` — or just ask Claude Code the same thing.
 
 Common pattern — adding a column from `stg_counterfactual` all the way to the mart:
 - Add to `stg_counterfactual.sqlx` (or confirm it comes through via `SELECT *`)
@@ -183,7 +202,7 @@ config {
 
 ## Changing a calculation
 
-- Find the file where the metric is first computed (usually an intermediate table)
+- Find the file where the metric is first computed (usually an intermediate table). Ask Claude Code: *"Where is `<metric>` first calculated?"*
 - Edit the expression there — downstream tables will pick up the change automatically on the next run
 - If the change affects column names, update every downstream file that references the old name
 - For the paint pipeline, the main calculation chain is:
@@ -195,14 +214,14 @@ int_lead_paint_market_share  (market share per country per month)
         ↓
 int_paint_program_base       (children averted, cBLL averted)
         ↓
-paint_summary_by_country     (DALYs, discounting, tier)
+paint_country_summary        (DALYs, discounting, tier)
 ```
 
 ---
 
 ## Testing changes
 
-**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production — running there overwrites real data that Looker Studio and the team depend on. Work through this ladder before opening a PR, cheapest and lowest-risk first.
+**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production — running there overwrites real data that Looker Studio and the team depend on. Work through this ladder before opening a PR, cheapest and lowest-risk first. Claude Code does the typing; **your job is to read and judge the output at each rung.**
 
 ### 1. Compile check
 
@@ -240,7 +259,7 @@ Assertions defined in each table's `config` block (`uniqueKey`, `nonNull`, `rowC
 
 Once a sandbox run is clean, confirm the change actually did what you intended — this is the step that verifies correctness, not just that nothing broke. Ask Claude Code to compare your sandbox mart against prod, e.g.:
 
-> Write a query comparing `paint_<yourname>.paint_summary_by_country` to `paint.paint_summary_by_country` — show me which rows and columns differ.
+> Write a query comparing `paint_<yourname>.paint_country_summary` to `paint.paint_country_summary` — show me which rows and columns differ.
 
 Read the diff yourself and judge whether it matches what you meant to change:
 - Are the rows that changed the ones you expected to change (and no others)?
@@ -255,7 +274,7 @@ Once you're satisfied, open a PR (see below).
 
 ## Viewing results in Looker Studio
 
-The mart tables (`paint_summary_by_country`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
+The mart tables (`paint_country_summary`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
 
 **To find a column:**
 1. Open the relevant Looker Studio report
@@ -274,6 +293,8 @@ If a newly added column isn't appearing:
 ---
 
 ## Coding conventions
+
+You don't need to memorise these — Claude Code already knows them from `CLAUDE.md` and applies them. They're here so you can recognise and check its work.
 
 - **Joins**: always join on `country_code`, not country name — World Bank names differ from common usage for many countries (DRC, Egypt, Cote D'Ivoire, Türkiye, etc.)
 - **Column names**: snake_case, descriptive over abbreviated
