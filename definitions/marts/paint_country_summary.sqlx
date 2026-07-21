@@ -84,10 +84,11 @@ SELECT
   cbll_averted_to_date,
 
   CASE
-    WHEN potential_dalys_discounted > 100000 THEN 'A'
-    WHEN potential_dalys_discounted < 10000  THEN 'D'
-    WHEN potential_dalys_discounted < 50000  THEN 'C'
-    ELSE 'B'
+    WHEN potential_dalys_discounted > 100000 THEN 'A+'
+    WHEN potential_dalys_discounted >= 50000 THEN 'A'
+    WHEN potential_dalys_discounted >= 20000 THEN 'B'
+    WHEN potential_dalys_discounted >= 5000  THEN 'C'
+    ELSE 'D'
   END AS tier,
 
   -- ── POTENTIAL IMPACT ───────────────────────────────────────────────────────
