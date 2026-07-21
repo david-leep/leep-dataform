@@ -2,18 +2,38 @@
 
 This guide covers how to make changes to the pipeline — adding tables, editing calculations, testing, and viewing results.
 
+**`main` is protected.** You cannot push to it directly, and PRs need at least one approving review before they can merge — this applies to everyone, with no exceptions. All work happens on your own branch (in the Dataform UI, your workspace *is* your branch). Never work directly on `main`.
+
 ## Editing in the Dataform UI (recommended for non-developers)
 
 1. Open [Dataform in GCP Console](https://console.cloud.google.com/bigquery/dataform)
-2. Open your personal workspace
-3. Edit `.sqlx` files directly in the browser
-4. Click **Commit & push** when done — a developer will review and merge
+2. Open your personal workspace — this is your branch; you never edit on `main`
+3. Before starting new work, **pull from remote** (see "Working with Git in the Dataform workspace" below) so you're building on the latest `main`, not a stale copy
+4. Edit `.sqlx` files directly in the browser
+5. Click **Commit & push** when done — a developer will review and merge
 
 ## Editing in VS Code (for developers)
 
 1. Clone this repo
-2. Edit `.sqlx` files directly
-3. Open a PR against `main`
+2. Create your own branch off `main` — never commit directly on `main`, it will be rejected:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b yourname-short-description
+   ```
+3. Edit `.sqlx` files directly
+4. Push your branch and open a PR against `main`
+
+### Keeping your branch up to date
+
+If `main` moves while you're working (someone else's PR merges), sync before you keep going — otherwise your PR will conflict or your local testing will be against a stale `main`:
+
+```bash
+git fetch origin
+git rebase origin/main   # or: git merge origin/main
+```
+
+Do this before opening a PR, and again if `main` moves further while your PR is still open for review.
 
 To run tables locally, authenticate first:
 
