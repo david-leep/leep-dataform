@@ -2,7 +2,18 @@ config {
   type: "table",
   name: "paint_summary_by_country",
   description: "Final DALY impact estimates per country for LEEP paint programs. Two impact scenarios: potential (full program success from baseline) and to_date (actual market reduction as of date_of_volume). Applies health/income DALY calculations, time discounting, and probability weighting.",
-  tags: ["marts"]
+  tags: ["marts"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "country_name", "tier"],
+    rowConditions: [
+      "baseline_lead_paint_market_share BETWEEN 0 AND 1",
+      "current_lead_paint_market_share BETWEEN 0 AND 1",
+      "potential_dalys_discounted >= 0",
+      "to_date_dalys_discounted >= 0",
+      "tier IN ('A+', 'A', 'B', 'C', 'D')"
+    ]
+  }
 }
 
 WITH base AS (

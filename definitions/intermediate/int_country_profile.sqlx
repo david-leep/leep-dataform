@@ -3,7 +3,11 @@ config {
   name: "int_country_profile",
   schema: "core",
   description: "LMIC countries with latest World Bank demographic indicators. Inner join filters to countries present in both country_metadata and indicators_long, and restricts to low/middle income countries only.",
-  tags: ["intermediate"]
+  tags: ["intermediate"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "country_name", "income_group"]
+  }
 }
 
 WITH latest_values AS (

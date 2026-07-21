@@ -182,30 +182,54 @@ paint_summary_by_country     (DALYs, discounting, tier)
 
 ## Testing changes
 
-Run only the affected layer to iterate quickly:
+**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production — running there overwrites real data that Looker Studio and the team depend on. Work through this ladder before opening a PR, cheapest and lowest-risk first.
+
+### 1. Compile check
 
 ```bash
-dataform run --tags staging
-dataform run --tags intermediate
-dataform run --tags marts
+dataform compile
 ```
 
-Or run a single file by name:
+Catches broken `${ref()}`s, missing declarations, and syntax errors. No BigQuery credentials needed, zero risk, takes seconds. Run this after every edit — not just before committing.
+
+### 2. Isolated run — your own sandbox dataset
 
 ```bash
-dataform run --actions int_paint_program_base
+dataform run --schema-suffix <yourname> --tags staging
+dataform run --schema-suffix <yourname> --tags intermediate
+dataform run --schema-suffix <yourname> --tags marts
 ```
 
-For the incremental table (`int_industry_full`), the first run needs `--full-refresh`. Subsequent runs do not:
+This materializes every table into `paint_<yourname>` / `core_<yourname>` instead of `paint` / `core` — a full personal copy of the pipeline you can break freely without touching prod. Or run a single action:
 
 ```bash
-dataform run --actions int_industry_full --full-refresh  # first time only
+dataform run --schema-suffix <yourname> --actions int_paint_program_base
 ```
 
-After running, check the output in BigQuery:
-- Spot-check row counts and nulls for key columns
-- For market share: confirm countries you expect are present and baseline values are plausible (0–1 range)
-- For the mart: check that `potential_dalys_discounted` and `tier` look reasonable for known countries
+For the incremental table (`int_industry_full`), the first run in a fresh sandbox needs `--full-refresh`:
+
+```bash
+dataform run --schema-suffix <yourname> --actions int_industry_full --full-refresh  # first time in this sandbox only
+```
+
+### 3. Assertions
+
+Assertions defined in each table's `config` block (`uniqueKey`, `nonNull`, `rowConditions`) run automatically as part of step 2 — no separate command needed. They fail the run loudly if the output is plausible-but-wrong: a duplicate country row, a market share outside 0–1, an unexpected null in a key column. If a sandbox run fails on an assertion, that's the safety net working — investigate the cause before proceeding. Don't rerun with `--disable-assertions` to make the red go away.
+
+### 4. Diff-the-data check
+
+Once a sandbox run is clean, confirm the change actually did what you intended — this is the step that verifies correctness, not just that nothing broke. Ask Claude Code to compare your sandbox mart against prod, e.g.:
+
+> Write a query comparing `paint_<yourname>.paint_summary_by_country` to `paint.paint_summary_by_country` — show me which rows and columns differ.
+
+Read the diff yourself and judge whether it matches what you meant to change:
+- Are the rows that changed the ones you expected to change (and no others)?
+- For market share: are baseline/current values still plausible for countries you know?
+- For the mart: do `potential_dalys_discounted` and `tier` still look reasonable for known countries?
+
+Trainees shouldn't need to write this query themselves — reading the result and judging whether it matches intent is the actual skill being exercised here.
+
+Once you're satisfied, open a PR (see below).
 
 ---
 

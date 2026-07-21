@@ -1,7 +1,11 @@
 config {
   type: "table",
   name: "stg_counterfactual",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"]
+  }
 }
 
 SELECT

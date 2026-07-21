@@ -1,7 +1,15 @@
 config {
   type: "table",
   name: "int_lead_paint_market_share",
-  tags: ["intermediate"]
+  tags: ["intermediate"],
+  assertions: {
+    uniqueKey: ["country_code", "year_month"],
+    nonNull: ["country_code", "year_month"],
+    rowConditions: [
+      "baseline_lead_paint_market_share BETWEEN 0 AND 1",
+      "current_lead_paint_market_share BETWEEN 0 AND 1"
+    ]
+  }
 }
 
 WITH base AS (

@@ -2,7 +2,11 @@ config {
   type: "table",
   name: "stg_discount_rates",
   schema: "core",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["program", "market_shift_year"],
+    nonNull: ["program", "market_shift_year"]
+  }
 }
 
 SELECT

@@ -1,7 +1,12 @@
 config {
   type: "table",
   name: "stg_market_share_overrides",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: ["market_share_assumption BETWEEN 0 AND 1"]
+  }
 }
 
 SELECT

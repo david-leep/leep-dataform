@@ -2,7 +2,12 @@ config {
   type: "table",
   name: "mart_industry_country_summary",
   description: "Summary statistics on paint manufacturers per country. Counts manufacturers at each engagement milestone and sums their high-Pb and total paint volumes. Excludes placeholder manufacturer IDs ending in 001, 002, or 003.",
-  tags: ["marts"]
+  tags: ["marts"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: ["high_pb_volume_total <= total_volume_total"]
+  }
 }
 
 WITH filtered AS (

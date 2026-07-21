@@ -3,7 +3,11 @@ config {
   name: "stg_indicators_long",
   schema: "core",
   description: "World Bank indicators ingested from raw source. One row per country, indicator, and year.",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["country_code", "indicator_name", "year"],
+    nonNull: ["country_code", "indicator_name", "year", "value"]
+  }
 }
 
 SELECT

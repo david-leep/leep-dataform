@@ -3,7 +3,12 @@ config {
   name: "mart_manufacturer_detail",
   schema: "paint",
   description: "One row per manufacturer with current milestone status and volumes. Filtered to the current month snapshot. Excludes placeholder manufacturer IDs ending in 001, 002, or 003.",
-  tags: ["marts"]
+  tags: ["marts"],
+  assertions: {
+    uniqueKey: ["unique_id"],
+    nonNull: ["unique_id", "country_code"],
+    rowConditions: ["high_pb_l <= total_volume_l"]
+  }
 }
 
 WITH filtered AS (

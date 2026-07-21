@@ -2,7 +2,11 @@ config {
   type: "table",
   name: "int_paint_program_base",
   description: "Joins all staging tables for paint programs and computes intermediate exposure calculations sequentially. Produces two cbll_averted values: potential (full program success from baseline) and to_date (actual reduction achieved as of date_of_volume).",
-  tags: ["intermediate"]
+  tags: ["intermediate"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"]
+  }
 }
 
 WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),

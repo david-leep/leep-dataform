@@ -1,3 +1,6 @@
+# defaultDataset is production. Local/dev runs must pass `--schema-suffix <name>`
+# to `dataform run` so output lands in an isolated dataset (e.g. paint_<name>)
+# instead of here. See CONTRIBUTING.md § Testing changes.
 defaultProject: leep-data-system
 defaultDataset: paint
 defaultAssertionDataset: dataform_assertions

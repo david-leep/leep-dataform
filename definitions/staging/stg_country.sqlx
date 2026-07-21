@@ -3,7 +3,11 @@ config {
   name: "stg_country",
   schema: "core",
   description: "Country metadata from raw source. One row per country, including income group for LMIC filtering.",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "income_group"]
+  }
 }
 
 SELECT
