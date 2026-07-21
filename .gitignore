@@ -1,5 +1,5 @@
 .df-credentials.json
 *.json
-CLAUDE.md
+CLAUDE.local.md
 plans/*
 .DS_Store

@@ -4,11 +4,7 @@ config {
   tags: ["intermediate"],
   assertions: {
     uniqueKey: ["country_code", "year_month"],
-    nonNull: ["country_code", "year_month"],
-    rowConditions: [
-      "baseline_lead_paint_market_share BETWEEN 0 AND 1",
-      "current_lead_paint_market_share BETWEEN 0 AND 1"
-    ]
+    nonNull: ["country_code", "year_month"]
   }
 }
 

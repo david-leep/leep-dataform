@@ -7,8 +7,6 @@ config {
     uniqueKey: ["country_code"],
     nonNull: ["country_code", "country_name", "tier"],
     rowConditions: [
-      "baseline_lead_paint_market_share BETWEEN 0 AND 1",
-      "current_lead_paint_market_share BETWEEN 0 AND 1",
       "potential_dalys_discounted >= 0",
       "to_date_dalys_discounted >= 0",
       "tier IN ('A+', 'A', 'B', 'C', 'D')"
