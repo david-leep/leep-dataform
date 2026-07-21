@@ -2,3 +2,4 @@
 *.json
 CLAUDE.md
 plans/*
+.DS_Store
