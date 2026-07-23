@@ -185,7 +185,7 @@ terminal and re-run the `npm install` command, then reload VS Code.
 
 ---
 
-## Part 8 — Your first change, end to end (the workflow you'll repeat forever)
+## Part 8 — Your first change, end to end
 
 This is the whole loop in miniature. Don't worry about making a "real" change yet — just walk the path. Session 3 gives you a real task.
 
@@ -260,5 +260,3 @@ git push -u origin yourname-first-change
 | Claude Code extension panel says it can't find Claude Code | Part 7 step 1 (the `npm install`) didn't finish. Open a terminal, re-run it, then reload VS Code. |
 
 ---
-
-*Everything you install here is standard and reusable — you're setting up a real developer environment, just with an AI assistant doing the parts that normally take months to learn. You don't need to master git or SQL. You need to make branches, ask good questions, check the output, and propose small changes for review. That's the whole job.*
