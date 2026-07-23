@@ -155,23 +155,33 @@ Replace `yourname` with your first name. The `--schema-suffix` part is critical:
 
 ## Part 7 — Install Claude Code
 
-Claude Code is the assistant that reads and writes SQL so you don't have to.
+Claude Code is the AI assistant that reads and writes SQL so you don't have to. You'll
+use it as a panel docked inside VS Code, right next to your files.
 
-1. Install it (both OS, in the terminal):
+1. **Install the underlying tool, one time only** (in the terminal):
    ```bash
    npm install -g @anthropic-ai/claude-code
    ```
-2. Move into the project folder if you're not already there (`cd ~/leep-dataform`), and start it:
-   ```bash
-   claude
-   ```
-3. The first time, it walks you through logging in with your Claude account in the browser. Follow the prompts.
-4. You're now at a chat prompt **inside the project**, which means Claude Code can see all the files. Try asking it something real:
+   This doesn't open anything yet — it just puts the tool on your machine so the VS
+   Code extension below has something to run.
+2. In VS Code, open the Extensions panel: `Cmd+Shift+X` (Mac) or `Ctrl+Shift+X` (Windows).
+3. Search for **"Claude Code"** (published by Anthropic) and click **Install**.
+4. Reload VS Code if it prompts you to.
+5. Make sure the `leep-dataform` folder is open in VS Code (File → Open Folder, if it
+   isn't already), then click the Claude Code icon in the left sidebar (or activity bar)
+   to open the panel.
+6. The first time, it'll ask you to log in with your Claude account in the browser.
+   Follow the prompts.
+7. You now have a chat panel **inside the project**, which means Claude Code can see all
+   the files. Try asking it something real:
    > Explain what the file definitions/marts/paint_country_summary.sqlx does, in plain English.
 
-   It'll read the file and explain. This is the core loop: you ask, it reads/explains/edits, you review. **You'll run `claude` from inside the `leep-dataform` folder every time** so it has the project context.
+   It'll read the file and explain. This is the core loop: you ask, it reads/explains/edits,
+   you review. **Keep the `leep-dataform` folder open in VS Code every time** so the panel
+   has the project's files in view.
 
-**Tip:** You can also run Claude Code inside VS Code's built-in terminal (View → Terminal), so the chat and the files are side by side.
+**If the extension panel says it can't find Claude Code:** step 1 didn't finish. Open a
+terminal and re-run the `npm install` command, then reload VS Code.
 
 ---
 
@@ -188,7 +198,7 @@ git checkout -b yourname-first-change
 ```
 The last command creates and switches to your branch. Name it after yourself and what you're doing, e.g. `sarah-add-note`.
 
-**Step 2 — Make a change with Claude Code.** Start `claude` and ask for something tiny and safe, like improving a description:
+**Step 2 — Make a change with Claude Code.** Open the Claude Code panel in VS Code and ask for something tiny and safe, like improving a description:
 > In definitions/marts/paint_country_summary.sqlx, improve the comment at the top to describe what the table contains. Show me the change before saving.
 
 Read what it proposes. If it looks right, let it make the edit.
@@ -241,12 +251,13 @@ git push -u origin yourname-first-change
 
 | Symptom | Likely fix |
 |--------|-----------|
-| `command not found: git / node / gcloud / dataform / claude` | Close and reopen the terminal after installing; that step's install didn't finish, or needs a fresh terminal. |
+| `command not found: git / node / gcloud / dataform` | Close and reopen the terminal after installing; that step's install didn't finish, or needs a fresh terminal. |
 | `code .` doesn't open VS Code (Mac) | Open VS Code → `Cmd+Shift+P` → type "install code command in PATH" → run it. Then retry. |
 | Cloning or pushing asks for a password and fails | GitHub dropped password login. Complete the login in the **browser** window that opens instead. |
 | `dataform compile` says it can't find the project | You're not inside the folder. Run `cd ~/leep-dataform` first. |
 | A `dataform run` fails on a `stg_` table with a permissions/Drive error | Your Google login is missing the Drive scope, or your account can't see the source sheet. Redo Part 6 step 3, and ask David to confirm sheet access. |
-| Claude Code doesn't seem to know about our files | You started `claude` from the wrong folder. Quit it, `cd ~/leep-dataform`, and run `claude` again. |
+| Claude Code doesn't seem to know about our files | The `leep-dataform` folder isn't open in VS Code. File → Open Folder → choose `leep-dataform`, then reopen the Claude Code panel. |
+| Claude Code extension panel says it can't find Claude Code | Part 7 step 1 (the `npm install`) didn't finish. Open a terminal, re-run it, then reload VS Code. |
 
 ---
 
