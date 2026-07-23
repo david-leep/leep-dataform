@@ -9,7 +9,7 @@ config {
     rowConditions: [
       "potential_dalys_discounted >= 0",
       "to_date_dalys_discounted >= 0",
-      "tier IN ('A+', 'A', 'B', 'C', 'D')"
+      "tier IN ('A', 'B', 'C', 'D')"
     ]
   }
 }
@@ -82,11 +82,10 @@ SELECT
   cbll_averted_to_date,
 
   CASE
-    WHEN potential_dalys_discounted > 100000 THEN 'A+'
-    WHEN potential_dalys_discounted >= 50000 THEN 'A'
-    WHEN potential_dalys_discounted >= 20000 THEN 'B'
-    WHEN potential_dalys_discounted >= 5000  THEN 'C'
-    ELSE 'D'
+    WHEN potential_dalys_discounted > 100000 THEN 'A'
+    WHEN potential_dalys_discounted < 10000  THEN 'D'
+    WHEN potential_dalys_discounted < 50000  THEN 'C'
+    ELSE 'B'
   END AS tier,
 
   -- ── POTENTIAL IMPACT ───────────────────────────────────────────────────────
