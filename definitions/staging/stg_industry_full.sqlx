@@ -9,7 +9,7 @@ DECLARE query STRING;
 
 SET query = (
   SELECT CONCAT(
-    'CREATE OR REPLACE VIEW `leep-data-system.paint.stg_industry_full` AS SELECT ',
+    'CREATE OR REPLACE VIEW ${self()} AS SELECT ',
     STRING_AGG(
       CONCAT(
         '`', column_name, '` AS ',
