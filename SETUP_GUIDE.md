@@ -1,8 +1,8 @@
-# Setting Up the VS Code + Claude Code Workflow — Novice Guide
+# Setting Up the VS Code + Claude Code Workflow
 
 **Who this is for:** LEEP research team members who have never used git, Claude Code, or SQL. You do **not** need any of those skills before starting. This guide gets your computer set up and walks you through making your first change safely.
 
-**How long:** About 60–90 minutes the first time, most of it waiting for installs. Do it before Session 3, not during it. If you get stuck, post in **#data-system** — getting stuck is expected and fine.
+**How long:** About 30-45 minutes the first time, most of it waiting for installs. Do it before Session 3. 
 
 **The mental model, in one paragraph:** The pipeline is a set of instructions (written in a language called SQL) that turn our raw Google Sheets into the impact numbers on the dashboards. Those instructions live in a shared online folder on GitHub called `leep-dataform`. You'll copy that folder onto your laptop, open it in an editor called VS Code, and use an AI assistant called Claude Code to read and change the instructions. When you're done, you propose your change for review — nothing you do can affect the real numbers until it's reviewed and approved.
 
@@ -67,7 +67,7 @@ git config --global user.email "you@leadelimination.org"
 ## Part 3 — Get a GitHub account and repo access
 
 1. If you don't have a GitHub account, create one free at <https://github.com/signup> using your LEEP email.
-2. Send David your GitHub username in **#data-system**. He'll add you to the `david-leep/leep-dataform` repository. **You can't copy the folder until he's done this** — wait for confirmation.
+2. The repo is public, please let David know if you can't see/access it.
 
 ---
 
@@ -243,7 +243,6 @@ git push -u origin yourname-first-change
 2. **Always `dataform compile` after an edit.** It's free and catches most mistakes.
 3. **Always run with `--schema-suffix yourname`.** Never run a plain `dataform run` — that could touch production.
 4. **Never open a PR with a line you can't explain.** Claude Code will explain any line — ask it. If you can't explain it, you're not ready to propose it.
-5. **When stuck, ask Claude Code first, then #data-system.** Most "how do I…" questions, Claude Code answers instantly. It's there so you never have to memorize git or SQL.
 
 ---
 
