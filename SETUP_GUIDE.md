@@ -173,6 +173,31 @@ Claude Code is the assistant that reads and writes SQL so you don't have to.
 
 **Tip:** You can also run Claude Code inside VS Code's built-in terminal (View → Terminal), so the chat and the files are side by side.
 
+### Using Claude Code as a VS Code extension (instead of the terminal)
+
+Rather than typing `claude` into a terminal every time, you can install Claude Code as a
+native VS Code extension — it opens as a side panel next to your files instead of a
+terminal window. **This does not replace the CLI install above — it needs it.** The
+extension is a UI layer that runs the same `claude` engine you installed in step 1, so
+do that step first if you haven't.
+
+1. In VS Code, open the Extensions panel: `Cmd+Shift+X` (Mac) or `Ctrl+Shift+X` (Windows).
+2. Search for **"Claude Code"** (published by Anthropic) and click **Install**.
+3. Reload VS Code if it prompts you to.
+4. Open the `leep-dataform` folder in VS Code (File → Open Folder, if it isn't already
+   open), then click the Claude Code icon in the left sidebar (or activity bar) to open
+   the panel.
+5. The first time, it'll ask you to log in — same Claude account as the CLI. Follow the
+   browser prompt.
+6. You now have a chat panel docked next to your files instead of a terminal tab. Both
+   the terminal (`claude`) and the extension panel use the same underlying tool and the
+   same project context — use whichever layout you prefer, or switch between them.
+
+**What you need besides the extension:** Node.js (Part 5) and the `@anthropic-ai/claude-code`
+CLI (step 1 above) — the extension calls out to that CLI under the hood, it isn't a
+fully separate install. If the extension can't find Claude Code, open a terminal and
+confirm `claude --version` works; if it doesn't, re-run step 1.
+
 ---
 
 ## Part 8 — Your first change, end to end (the workflow you'll repeat forever)
@@ -247,6 +272,7 @@ git push -u origin yourname-first-change
 | `dataform compile` says it can't find the project | You're not inside the folder. Run `cd ~/leep-dataform` first. |
 | A `dataform run` fails on a `stg_` table with a permissions/Drive error | Your Google login is missing the Drive scope, or your account can't see the source sheet. Redo Part 6 step 3, and ask David to confirm sheet access. |
 | Claude Code doesn't seem to know about our files | You started `claude` from the wrong folder. Quit it, `cd ~/leep-dataform`, and run `claude` again. |
+| Claude Code extension panel says it can't find Claude Code | The extension needs the CLI installed separately (Part 7, step 1). Open a terminal and run `claude --version` to confirm it's installed. |
 
 ---
 
