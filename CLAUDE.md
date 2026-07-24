@@ -25,6 +25,8 @@ to git, SQL, and Claude Code. When you help them:
   code in this repo in plain language, and point to the specific file and lines.
 - **Flag uncertainty.** If you're not sure a change is correct, say so and suggest how
   to verify it rather than asserting it works.
+- **Always ask the user questions for things that are unclear** If a judgement call is needed,
+  e.g. which DALY column is needed for a calculation, ask the user questions before proceeding.
 
 ---
 
