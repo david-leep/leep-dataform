@@ -58,7 +58,8 @@ daly_totals AS (
   FROM daly_components
 )
 
--- Step 3: apply probability weighting and select final columns
+-- Step 3: apply probability weighting (potential scenario only — to-date impact
+-- has already happened, so it isn't discounted by success probability) and select final columns
 SELECT
   country_name,
   country_code,
@@ -99,7 +100,6 @@ SELECT
   to_date_health_dalys                                      AS to_date_health_dalys_averted,
   to_date_income_dalys                                      AS to_date_daly_equivalent_income_loss,
   to_date_dalys_averted,
-  to_date_dalys_discounted,
-  to_date_dalys_discounted * program_success_probability    AS to_date_dalys_discounted_probability
+  to_date_dalys_discounted
 
 FROM daly_totals
