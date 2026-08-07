@@ -37,6 +37,15 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
               THEN latest_lpm.current_lead_paint_market_share
               ELSE NULL
          END                                                                                    AS current_lead_paint_market_share,
+         -- Pipeline scenarios: manufacturers at an earlier milestone credited as reformulated
+         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
+              THEN latest_lpm.current_lead_paint_market_share_taking_steps
+              ELSE NULL
+         END                                                                                    AS current_lead_paint_market_share_taking_steps,
+         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
+              THEN latest_lpm.current_lead_paint_market_share_significant_progress
+              ELSE NULL
+         END                                                                                    AS current_lead_paint_market_share_significant_progress,
          latest_lpm.year_month                                                                  AS market_share_year_month,
          cf.program,
          cf.status,
@@ -75,6 +84,10 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
            AS potential_market_share_reduction,
          baseline_lead_paint_market_share - current_lead_paint_market_share
            AS to_date_market_share_reduction,
+         baseline_lead_paint_market_share - current_lead_paint_market_share_taking_steps
+           AS to_date_market_share_reduction_taking_steps,
+         baseline_lead_paint_market_share - current_lead_paint_market_share_significant_progress
+           AS to_date_market_share_reduction_significant_progress,
          -- K: children born into painted homes, weighted by urban/rural rates
          (urban_rate * percentage_urban_homes_painted
            + (1 - urban_rate) * percentage_rural_homes_painted)
@@ -111,7 +124,18 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction, baseline_lead_paint_market_share)
-           AS children_averted_to_date
+           AS children_averted_to_date,
+         -- V_to_date under each pipeline scenario
+         children_born_in_lead_painted_homes
+           * (1 / percentage_repainted_homes_per_year)
+           * additional_years_before_market_shift_without_leep
+           * SAFE_DIVIDE(to_date_market_share_reduction_taking_steps, baseline_lead_paint_market_share)
+           AS children_averted_to_date_taking_steps,
+         children_born_in_lead_painted_homes
+           * (1 / percentage_repainted_homes_per_year)
+           * additional_years_before_market_shift_without_leep
+           * SAFE_DIVIDE(to_date_market_share_reduction_significant_progress, baseline_lead_paint_market_share)
+           AS children_averted_to_date_significant_progress
        FROM lead_exposure
      )
 
@@ -127,16 +151,22 @@ SELECT
   urban_rate,
   baseline_lead_paint_market_share,
   current_lead_paint_market_share,
+  current_lead_paint_market_share_taking_steps,
+  current_lead_paint_market_share_significant_progress,
   market_share_year_month,
   market_shift_year,
   market_shift_counterfactual_year,
   lead_paint_reduction_percentage,
   potential_market_share_reduction,
   to_date_market_share_reduction,
+  to_date_market_share_reduction_taking_steps,
+  to_date_market_share_reduction_significant_progress,
   children_born_in_painted_homes,
   children_born_in_lead_painted_homes,
   children_averted_potential,
   children_averted_to_date,
+  children_averted_to_date_taking_steps,
+  children_averted_to_date_significant_progress,
   paint_bll_impact_ug_per_dl,
   health_dalys_per_bll,
   iq_points_lost_per_bll,
@@ -147,5 +177,7 @@ SELECT
   income_dalys_discount_rate,
   program_success_probability,
   children_averted_potential * paint_bll_impact_ug_per_dl AS cbll_averted_potential,
-  children_averted_to_date   * paint_bll_impact_ug_per_dl AS cbll_averted_to_date
+  children_averted_to_date   * paint_bll_impact_ug_per_dl AS cbll_averted_to_date,
+  children_averted_to_date_taking_steps        * paint_bll_impact_ug_per_dl AS cbll_averted_to_date_taking_steps,
+  children_averted_to_date_significant_progress * paint_bll_impact_ug_per_dl AS cbll_averted_to_date_significant_progress
 FROM averted_exposure
