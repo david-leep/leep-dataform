@@ -14,7 +14,7 @@ config {
       // Milestones are cumulative, so each earlier stage must be at least the later one
       "to_date_dalys_discounted_significant_progress >= to_date_dalys_discounted",
       "to_date_dalys_discounted_taking_steps >= to_date_dalys_discounted_significant_progress",
-      "tier IN ('A', 'B', 'C', 'D')"
+      "tier IN ('A+', 'A', 'B', 'C', 'D')"
     ]
   }
 }
@@ -84,9 +84,18 @@ daly_totals AS (
       + to_date_income_dalys_significant_progress * income_dalys_discount_rate
       AS to_date_dalys_discounted_significant_progress
   FROM daly_components
+),
+
+-- Step 2b: apply probability weighting on top of time discounting (used for tiering)
+daly_probability_weighted AS (
+  SELECT
+    *,
+    potential_dalys_discounted * program_success_probability AS potential_dalys_discounted_probability,
+    to_date_dalys_discounted * program_success_probability   AS to_date_dalys_discounted_probability
+  FROM daly_totals
 )
 
--- Step 3: apply probability weighting and select final columns
+-- Step 3: assign tiers off time-and-probability discounted DALYs, and select final columns
 SELECT
   country_name,
   country_code,
@@ -109,11 +118,13 @@ SELECT
   cbll_averted_potential,
   cbll_averted_to_date,
 
+  -- Tiers based on time-and-probability discounted DALYs (potential scenario)
   CASE
-    WHEN potential_dalys_discounted > 100000 THEN 'A'
-    WHEN potential_dalys_discounted < 10000  THEN 'D'
-    WHEN potential_dalys_discounted < 50000  THEN 'C'
-    ELSE 'B'
+    WHEN potential_dalys_discounted_probability > 100000 THEN 'A+'
+    WHEN potential_dalys_discounted_probability >= 50000 THEN 'A'
+    WHEN potential_dalys_discounted_probability >= 20000 THEN 'B'
+    WHEN potential_dalys_discounted_probability >= 5000  THEN 'C'
+    ELSE 'D'
   END AS tier,
 
   -- ── POTENTIAL IMPACT ───────────────────────────────────────────────────────
@@ -121,7 +132,7 @@ SELECT
   potential_income_dalys                                    AS potential_daly_equivalent_income_loss,
   potential_dalys_averted,
   potential_dalys_discounted,
-  potential_dalys_discounted * program_success_probability  AS potential_dalys_discounted_probability,
+  potential_dalys_discounted_probability,
 
   -- ── TO-DATE IMPACT ─────────────────────────────────────────────────────────
   to_date_health_dalys                                      AS to_date_health_dalys_averted,
@@ -136,5 +147,6 @@ SELECT
   -- By construction taking_steps >= significant_progress >= to_date_dalys_discounted.
   to_date_dalys_discounted_taking_steps,
   to_date_dalys_discounted_significant_progress
+  to_date_dalys_discounted_probability
 
-FROM daly_totals
+FROM daly_probability_weighted
