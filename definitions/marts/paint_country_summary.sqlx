@@ -1,7 +1,7 @@
 config {
   type: "table",
   name: "paint_summary_by_country",
-  description: "Final DALY impact estimates per country for LEEP paint programs. Two impact scenarios: potential (full program success from baseline) and to_date (actual market reduction as of date_of_volume). Applies health/income DALY calculations, time discounting, and probability weighting.",
+  description: "Final DALY impact estimates per country for LEEP paint programs. Two impact scenarios: potential (full program success from baseline) and to_date (actual market reduction as of date_of_volume). The to_date impact is also broken down by manufacturer milestone: the headline to_date figure credits only reformulated manufacturers, while the _taking_steps and _significant_progress columns are cumulative pipeline scenarios crediting manufacturers at those earlier milestones as if they had also removed lead. Applies health/income DALY calculations, time discounting, and probability weighting.",
   tags: ["marts"],
   assertions: {
     uniqueKey: ["country_code"],
@@ -9,6 +9,11 @@ config {
     rowConditions: [
       "potential_dalys_discounted >= 0",
       "to_date_dalys_discounted >= 0",
+      "to_date_dalys_discounted_significant_progress >= 0",
+      "to_date_dalys_discounted_taking_steps >= 0",
+      // Milestones are cumulative, so each earlier stage must be at least the later one
+      "to_date_dalys_discounted_significant_progress >= to_date_dalys_discounted",
+      "to_date_dalys_discounted_taking_steps >= to_date_dalys_discounted_significant_progress",
       "tier IN ('A+', 'A', 'B', 'C', 'D')"
     ]
   }
@@ -37,7 +42,24 @@ daly_components AS (
       * cbll_averted_to_date
       * number_of_years_spent_working
       * daly_to_income_factor)
-      AS to_date_income_dalys
+      AS to_date_income_dalys,
+    -- Same components under each manufacturer-milestone pipeline scenario
+    health_dalys_per_bll * cbll_averted_to_date_taking_steps
+      AS to_date_health_dalys_taking_steps,
+    (income_loss_percentage_per_iq_point
+      * iq_points_lost_per_bll
+      * cbll_averted_to_date_taking_steps
+      * number_of_years_spent_working
+      * daly_to_income_factor)
+      AS to_date_income_dalys_taking_steps,
+    health_dalys_per_bll * cbll_averted_to_date_significant_progress
+      AS to_date_health_dalys_significant_progress,
+    (income_loss_percentage_per_iq_point
+      * iq_points_lost_per_bll
+      * cbll_averted_to_date_significant_progress
+      * number_of_years_spent_working
+      * daly_to_income_factor)
+      AS to_date_income_dalys_significant_progress
   FROM base
 ),
 
@@ -54,7 +76,13 @@ daly_totals AS (
       AS to_date_dalys_averted,
     to_date_health_dalys * health_dalys_discount_rate
       + to_date_income_dalys * income_dalys_discount_rate
-      AS to_date_dalys_discounted
+      AS to_date_dalys_discounted,
+    to_date_health_dalys_taking_steps * health_dalys_discount_rate
+      + to_date_income_dalys_taking_steps * income_dalys_discount_rate
+      AS to_date_dalys_discounted_taking_steps,
+    to_date_health_dalys_significant_progress * health_dalys_discount_rate
+      + to_date_income_dalys_significant_progress * income_dalys_discount_rate
+      AS to_date_dalys_discounted_significant_progress
   FROM daly_components
 ),
 
@@ -111,6 +139,13 @@ SELECT
   to_date_income_dalys                                      AS to_date_daly_equivalent_income_loss,
   to_date_dalys_averted,
   to_date_dalys_discounted,
-  to_date_dalys_discounted_probability
+  to_date_dalys_discounted_probability,
+
+  -- ── TO-DATE IMPACT BY MANUFACTURER MILESTONE ───────────────────────────────
+  -- Cumulative pipeline scenarios: what the to-date discounted DALY impact would be if
+  -- every manufacturer that has reached this milestone (or a later one) had removed lead.
+  -- By construction taking_steps >= significant_progress >= to_date_dalys_discounted.
+  to_date_dalys_discounted_taking_steps,
+  to_date_dalys_discounted_significant_progress
 
 FROM daly_probability_weighted

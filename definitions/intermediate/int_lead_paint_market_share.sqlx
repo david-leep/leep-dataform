@@ -17,6 +17,13 @@ WITH base AS (
     high_pb_l,
     oil_l,
     date_reformulation_complete,
+    -- Milestone flags are cumulative: a manufacturer that reached a later milestone
+    -- counts as having reached the earlier ones, even if the earlier date is blank.
+    (date_taking_steps IS NOT NULL
+      OR date_making_significant_progress IS NOT NULL
+      OR date_reformulation_complete IS NOT NULL)    AS reached_taking_steps,
+    (date_making_significant_progress IS NOT NULL
+      OR date_reformulation_complete IS NOT NULL)    AS reached_significant_progress,
     FORMAT_DATE('%Y-%m', partition_date) AS year_month
   FROM ${ref("int_industry_full")}
   WHERE total_volume_l IS NOT NULL
@@ -32,6 +39,8 @@ manufacturer_stats AS (
     high_pb_l,
     oil_l,
     date_reformulation_complete,
+    reached_taking_steps,
+    reached_significant_progress,
     MAX(CASE WHEN leaded_paint_type LIKE '%Water%' THEN 1 ELSE 0 END) OVER (PARTITION BY country_code, year_month) AS country_has_water,
     SUM(total_volume_l) OVER (PARTITION BY country_code, year_month) AS country_total_volume
   FROM base
@@ -59,7 +68,29 @@ market_share AS (
           SUM(CASE WHEN date_reformulation_complete IS NULL THEN high_pb_l ELSE 0 END),
           SUM(oil_l)
         )
-    END AS current_lead_paint_market_share
+    END AS current_lead_paint_market_share,
+    -- Pipeline scenarios: same calculation, but crediting manufacturers at an earlier
+    -- milestone as if they had also removed lead. Used to show what to-date impact is in
+    -- the pipeline behind the reformulated figure. Cumulative, so these are always
+    -- lower (more optimistic) than current_lead_paint_market_share.
+    CASE
+      WHEN country_has_water = 1 THEN
+        SUM(CASE WHEN high_pb_l > 0 AND NOT reached_taking_steps THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
+      ELSE
+        SAFE_DIVIDE(
+          SUM(CASE WHEN NOT reached_taking_steps THEN high_pb_l ELSE 0 END),
+          SUM(oil_l)
+        )
+    END AS current_lead_paint_market_share_taking_steps,
+    CASE
+      WHEN country_has_water = 1 THEN
+        SUM(CASE WHEN high_pb_l > 0 AND NOT reached_significant_progress THEN total_volume_l / NULLIF(country_total_volume, 0) ELSE 0 END)
+      ELSE
+        SAFE_DIVIDE(
+          SUM(CASE WHEN NOT reached_significant_progress THEN high_pb_l ELSE 0 END),
+          SUM(oil_l)
+        )
+    END AS current_lead_paint_market_share_significant_progress
   FROM manufacturer_stats
   GROUP BY country_code, year_month, country_has_water, country_total_volume
 ),
@@ -76,6 +107,8 @@ SELECT
   ms.country_has_water,
   ms.baseline_lead_paint_market_share,
   ms.current_lead_paint_market_share,
+  ms.current_lead_paint_market_share_taking_steps,
+  ms.current_lead_paint_market_share_significant_progress,
   cf.program,
   cf.status,
   cf.source_of_funding
