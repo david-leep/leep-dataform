@@ -6,7 +6,13 @@ config {
   tags: ["intermediate"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code", "country_name", "income_group"]
+    nonNull: ["country_code", "country_name", "income_group"],
+    rowConditions: [
+      "urban_rate BETWEEN 0 AND 1",
+      "annual_number_of_births >= 0",
+      "birth_rate >= 0",
+      "population >= 0"
+    ]
   }
 }
 
