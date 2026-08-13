@@ -5,7 +5,13 @@ config {
   tags: ["intermediate"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code"]
+    nonNull: ["country_code"],
+    rowConditions: [
+      // Countries with no active program legitimately have no discount rate (market_shift_year
+      // is null). But if a program exists, its market_shift_year must be covered by
+      // stg_discount_rates -- otherwise DALYs silently compute to NULL instead of failing loudly.
+      "market_shift_year IS NULL OR (health_dalys_discount_rate IS NOT NULL AND income_dalys_discount_rate IS NOT NULL)"
+    ]
   }
 }
 
