@@ -1,7 +1,31 @@
 config {
   type: "table",
   name: "stg_assumptions",
-  tags: ["staging"]
+  tags: ["staging"],
+  assertions: {
+    nonNull: [
+      "percentage_newly_painted_homes_per_year",
+      "percentage_repainted_homes_per_year",
+      "colored_paint_market_share",
+      "paint_bll_impact_ug_per_dl",
+      "health_dalys_per_bll",
+      "iq_points_lost_per_bll",
+      "number_of_years_spent_working",
+      "income_loss_percentage_per_iq_point",
+      "daly_to_income_factor",
+      "program_success_probability",
+      "percentage_urban_homes_painted",
+      "percentage_rural_homes_painted"
+    ],
+    rowConditions: [
+      "percentage_newly_painted_homes_per_year BETWEEN 0 AND 1",
+      "percentage_repainted_homes_per_year BETWEEN 0 AND 1",
+      "colored_paint_market_share BETWEEN 0 AND 1",
+      "program_success_probability BETWEEN 0 AND 1",
+      "percentage_urban_homes_painted BETWEEN 0 AND 1",
+      "percentage_rural_homes_painted BETWEEN 0 AND 1"
+    ]
+  }
 }
 
 SELECT
