@@ -2,10 +2,15 @@ name: Dataform CI
 
 on:
   pull_request:
+  push:
+    branches: [main]
+    paths:
+      - "definitions/**"
+      - "workflow_settings.yaml"
 
 jobs:
   # Stage 1 — no secrets needed. Catches broken refs, syntax errors,
-  # missing source declarations. Runs on every PR from day one.
+  # missing source declarations. Runs on every PR and every push to main.
   compile:
     runs-on: ubuntu-latest
     steps:
@@ -23,8 +28,9 @@ jobs:
   #   1. GitHub secret GCP_SA_KEY (service account JSON key)
   #   2. Repo variable DATAFORM_CI_RUN set to 'true' (Settings > Secrets
   #      and variables > Actions > Variables) — flips this job on.
+  # PR-only: production writes happen in run-production below instead.
   run-sandbox:
-    if: ${{ vars.DATAFORM_CI_RUN == 'true' }}
+    if: ${{ github.event_name == 'pull_request' && vars.DATAFORM_CI_RUN == 'true' }}
     needs: compile
     runs-on: ubuntu-latest
     steps:
@@ -42,3 +48,28 @@ jobs:
         run: echo '{"projectId":"leep-data-system","location":"EU"}' > .df-credentials.json
       - name: Run pipeline into CI sandbox
         run: dataform run --schema-suffix ci
+
+  # Stage 3 — runs against PRODUCTION (paint, core — no --schema-suffix) on
+  # every push to main, i.e. every merge. Gated behind the "production"
+  # GitHub Environment (Settings > Environments), which requires manual
+  # approval before this job's steps execute.
+  run-production:
+    if: ${{ github.event_name == 'push' }}
+    needs: compile
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Dataform CLI
+        run: npm install -g @dataform/cli@3.0.42
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Write Dataform credentials (ADC mode)
+        run: echo '{"projectId":"leep-data-system","location":"EU"}' > .df-credentials.json
+      - name: Run pipeline against production
+        run: dataform run
