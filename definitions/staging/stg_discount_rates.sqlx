@@ -9,10 +9,15 @@ config {
   }
 }
 
+-- Calibration factor: scales the raw sheet discount factors so that the DALY
+-- estimates produced downstream line up with LEEP's online cost-effectiveness
+-- model. Applied here (the single point where discount factors enter the
+-- pipeline) rather than in the source sheet, so the adjustment is versioned
+-- and reviewable. Change this one constant to recalibrate.
 SELECT
   program,
   market_shift_year,
-  health_dalys_discount_rate,
-  income_dalys_discount_rate
+  health_dalys_discount_rate * 0.8664 AS health_dalys_discount_rate,
+  income_dalys_discount_rate * 0.8664 AS income_dalys_discount_rate
 FROM
   `leep-data-system.core.discount_rates`
