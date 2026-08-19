@@ -88,14 +88,6 @@ as external tables in `definitions/sources/external_tables.sqlx` (Google Sheets-
 - Dataform + BigQuery. GCP project: `leep-data-system`. Region: `europe-west4` (EU).
 - Dataform Core version: `3.0.42` (see `workflow_settings.yaml`). Default dataset:
   `paint` (production). Assertions dataset: `dataform_assertions`.
-- **Discount factors carry a calibration factor.** `stg_discount_rates` multiplies both
-  `health_dalys_discount_rate` and `income_dalys_discount_rate` from the source sheet by
-  **0.8664**, to calibrate the pipeline's DALY estimates to LEEP's online
-  cost-effectiveness model. The raw sheet is unchanged — the adjustment lives in code so
-  it stays versioned and reviewable. To recalibrate, change that one constant in
-  `definitions/staging/stg_discount_rates.sqlx`; note that the tier thresholds in
-  `paint_country_summary` are absolute DALY cutoffs, so rescaling moves countries between
-  tiers.
 - External tables are backed by **Google Sheets**. The data is live, but
   `INFORMATION_SCHEMA` reflects the schema from when `CREATE EXTERNAL TABLE` last ran —
   so if a sheet column is renamed, the external table won't see it until the DDL in
