@@ -108,7 +108,7 @@ as external tables in `definitions/sources/external_tables.sqlx` (Google Sheets-
   tables wherever the grain or valid range is known (`uniqueKey`, `nonNull`,
   `rowConditions` such as `market_share BETWEEN 0 AND 1`). Assertions are what make a
   sandbox run fail loudly on plausible-but-wrong output instead of silently passing.
-- **Comment non-obvious business logic.** Keep comments to 1 line if at all possible, an skip comments for self-evident code.
+- **Comment non-obvious business logic.** Keep comments to 1 line if at all possible, and comments for self-evident code.
 - Validate data at source boundaries, not in every downstream transformation.
 - Keep transformations **idempotent** — re-running produces the same result.
 
