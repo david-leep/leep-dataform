@@ -9,10 +9,11 @@ config {
   }
 }
 
+-- 0.8664 calibrates DALY estimates to LEEP's online cost-effectiveness model.
 SELECT
   program,
   market_shift_year,
-  health_dalys_discount_rate,
-  income_dalys_discount_rate
+  health_dalys_discount_rate * 0.8664 AS health_dalys_discount_rate,
+  income_dalys_discount_rate * 0.8664 AS income_dalys_discount_rate
 FROM
   `leep-data-system.core.discount_rates`
