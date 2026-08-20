@@ -1,7 +1,7 @@
 config {
   type: "table",
   name: "paint_summary_by_country",
-  description: "Final DALY impact estimates per country for LEEP paint programs. Two impact scenarios: potential (full program success from baseline) and to_date (actual market reduction as of date_of_volume). The to_date impact is also broken down by manufacturer milestone: the headline to_date figure credits only reformulated manufacturers, while the _taking_steps and _significant_progress columns are cumulative pipeline scenarios crediting manufacturers at those earlier milestones as if they had also removed lead. Applies health/income DALY calculations, time discounting, and probability weighting.",
+  description: "One row per country summarizing LEEP paint-program impact. Contains country demographics, lead-paint market-share reductions, children with averted lead exposure, and health and income DALYs avoided. Reports potential impact assuming full program success, actual to-date impact from completed reformulations, and cumulative pipeline scenarios for manufacturers taking steps or making significant progress. DALYs are time-discounted; potential and to-date impacts also include program-success probability weighting for country tiering.",
   tags: ["marts"],
   assertions: {
     uniqueKey: ["country_code"],
