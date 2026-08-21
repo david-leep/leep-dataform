@@ -189,7 +189,7 @@ there is a backstop underneath it rather than care alone.
 
 The most common way you'll extend the system (e.g. adding a new M&E or impact source) is adding a Google Sheet. Ask Claude Code to do all three steps — *"Add a new source `stg_water_tracker` from this sheet: <url>"* — and it will follow this pattern. Understanding the three touch-points lets you check its work:
 
-**1. Create the external table** in `definitions/sources/external_tables.sqlx`:
+**1. Add the external table DDL** to `definitions/sources/external_tables.sqlx`:
 
 ```sql
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.<dataset>.<table_name>`
@@ -200,41 +200,44 @@ OPTIONS (
 );
 ```
 
-External tables live in production datasets, which you cannot write. **Do not run this DDL
-in the BigQuery console** — it will fail, and it is not how the change gets made. Put the
-DDL in your PR like any other change; a maintainer executes it after the merge.
+**This file is never run by the pipeline.** It is tagged `disabled: true`, so `dataform run`
+always skips it. It exists as a versioned record of the DDL, which a person executes by hand
+against production when it changes. You add the statement; you do not run it — external
+tables live in production datasets and you have no write access there.
 
-**Before you open the PR, share the sheet with both service accounts** as Viewer:
+So the sequence for a new source is:
+
+1. You open a PR containing all three steps below
+2. You share the sheet with both service accounts (see below)
+3. A maintainer merges it and runs the DDL once
+4. *Then* you can run the pipeline in your sandbox and check the staging table
+
+Step 4 comes last because sources are *declared*, not built: `--schema-suffix` doesn't apply
+to them, so your sandbox reads production's external tables. Until the table exists in
+production, there's nothing for your sandbox to read. Everything downstream of staging is
+testable as normal.
+
+**Share the sheet with both service accounts** as Viewer, before the PR:
 
 - `dataform-sandbox@leep-data-system.iam.gserviceaccount.com` — so sandbox runs can read it
 - `dataform-executor@leep-data-system.iam.gserviceaccount.com` — so production runs can read it
 
-The sheets are read by the service account, never by your own Google account, so sharing it
-with yourself is not enough.
-
-The file is tagged `disabled: true` so it never runs during a normal pipeline execution.
-
-**One ordering quirk to expect.** Sources are declared, not built, so `--schema-suffix` does
-not apply to them: your sandbox reads production's external tables. A brand-new source
-therefore cannot be tested end to end until the external table exists in production — i.e.
-until after the merge. Sequence: open the PR → maintainer merges and runs the DDL → then run
-the pipeline in your sandbox to check the staging table. Everything downstream of staging is
-testable as normal.
+Sheets are read by the service account, never by your own Google account, so sharing it with
+yourself is not enough.
 
 **If a sheet's columns change later**, the external table keeps serving the schema captured
-when the DDL last ran. A maintainer has to re-run it before the new column appears.
+when the DDL last ran. Ask a maintainer to re-run it before the new column appears.
 
 <details>
-<summary><strong>For maintainers: running the DDL after merge</strong></summary>
+<summary><strong>For maintainers: running the DDL</strong></summary>
 
-External table DDL is the one production change not made by the Dataform pipeline. After
-merging, run the statements in `definitions/sources/external_tables.sqlx` (everything below
-the `config` block) in the BigQuery console as an account with write access to the target
-dataset. `CREATE OR REPLACE EXTERNAL TABLE` is idempotent, so running the whole file is
-safe and also refreshes any sheet whose schema has changed.
+After merging, run the statements in `external_tables.sqlx` (everything below the `config`
+block) against production, as an account with write access — the BigQuery console works.
+`CREATE OR REPLACE EXTERNAL TABLE` is idempotent, so running the whole file is safe and also
+refreshes any sheet whose schema has changed.
 
-Confirm the sheet is shared with both service accounts first, or the table will be created
-but unreadable — which fails later, during a pipeline run, rather than here.
+Check the sheet is shared with both service accounts first. Otherwise the table is created
+but unreadable, and the failure surfaces later during a pipeline run rather than here.
 
 </details>
 
