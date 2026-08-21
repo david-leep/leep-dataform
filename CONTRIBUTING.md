@@ -200,22 +200,9 @@ OPTIONS (
 );
 ```
 
-**This file is never run by the pipeline.** It is tagged `disabled: true`, so `dataform run`
-always skips it. It exists as a versioned record of the DDL, which a person executes by hand
-against production when it changes. You add the statement; you do not run it — external
-tables live in production datasets and you have no write access there.
-
-So the sequence for a new source is:
-
-1. You open a PR containing all three steps below
-2. You share the sheet with both service accounts (see below)
-3. A maintainer merges it and runs the DDL once
-4. *Then* you can run the pipeline in your sandbox and check the staging table
-
-Step 4 comes last because sources are *declared*, not built: `--schema-suffix` doesn't apply
-to them, so your sandbox reads production's external tables. Until the table exists in
-production, there's nothing for your sandbox to read. Everything downstream of staging is
-testable as normal.
+You don't run this yourself. The file is skipped in every normal run, and executed only by
+the production job after a merge to `main` — so **merging your PR creates the table**. There
+is no manual step and nothing to run in the BigQuery console.
 
 **Share the sheet with both service accounts** as Viewer, before the PR:
 
@@ -223,21 +210,36 @@ testable as normal.
 - `dataform-executor@leep-data-system.iam.gserviceaccount.com` — so production runs can read it
 
 Sheets are read by the service account, never by your own Google account, so sharing it with
-yourself is not enough.
+yourself is not enough. This is the step people forget: the table gets created fine and then
+the pipeline fails later with a Drive error.
 
-**If a sheet's columns change later**, the external table keeps serving the schema captured
-when the DDL last ran. Ask a maintainer to re-run it before the new column appears.
+**Changing a sheet's columns** needs no special handling either. The external table serves
+whatever schema was captured when the DDL last ran, and the production job re-runs it on
+every execution — so the next production run picks the change up.
+
+**One ordering quirk.** Sources are *declared*, not built, so `--schema-suffix` doesn't apply
+to them and your sandbox reads production's external tables. A brand-new source therefore
+can't be tested end to end until after the merge. Sequence: open the PR → it merges → the
+production run creates the table → then run the pipeline in your sandbox to check the staging
+table. Everything downstream of staging is testable as normal.
 
 <details>
-<summary><strong>For maintainers: running the DDL</strong></summary>
+<summary><strong>How the DDL gets executed</strong></summary>
 
-After merging, run the statements in `external_tables.sqlx` (everything below the `config`
-block) against production, as an account with write access — the BigQuery console works.
-`CREATE OR REPLACE EXTERNAL TABLE` is idempotent, so running the whole file is safe and also
-refreshes any sheet whose schema has changed.
+The action's `config` block reads:
 
-Check the sheet is shared with both service accounts first. Otherwise the table is created
-but unreadable, and the failure surfaces later during a pipeline run rather than here.
+```js
+disabled: dataform.projectConfig.vars.createExternalTables !== "true"
+```
+
+`createExternalTables` defaults to `"false"` in `workflow_settings.yaml`, so the action is
+disabled for every local and sandbox run. The production job in `.github/workflows/dataform-ci.yml`
+runs `dataform run --vars=createExternalTables=true`, which enables it. `CREATE OR REPLACE
+EXTERNAL TABLE` is idempotent, so re-running it each time is harmless and keeps the external
+tables matching the repo.
+
+If you ever need to execute it locally, `--vars=createExternalTables=true` would do it — but
+it writes production datasets, so it will fail unless you have production write.
 
 </details>
 

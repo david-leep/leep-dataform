@@ -146,9 +146,9 @@ downstream through the explicit column lists in `int_paint_program_base` and
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
 (3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns. The DDL
-file is tagged `disabled: true` so it doesn't run on every pipeline execution. External
-tables live in production datasets, which researchers cannot write — the DDL goes in the
-PR and a maintainer runs it after merge. Tell the user to share the sheet with both
-service accounts (`dataform-sandbox` and `dataform-executor`), and warn them the new
-source can't be tested end to end until after the merge, since declarations aren't
+file is gated behind the `createExternalTables` var, so it is skipped in every run except
+the production job (which passes `--vars=createExternalTables=true`). That means merging
+the PR creates the table — there is no manual DDL step. Tell the user to share the sheet
+with both service accounts (`dataform-sandbox` and `dataform-executor`), and warn them the
+new source can't be tested end to end until after the merge, since declarations aren't
 schema-suffixed.
