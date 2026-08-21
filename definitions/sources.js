@@ -33,3 +33,9 @@ declare({
   name: "market_share_overrides",
   description: "Manual baseline market share estimates for countries without industry tracker data."
 });
+
+declare({
+  schema: "spices",
+  name: "spices_assumptions",
+  description: "Turmeric adulteration assumptions for LEEP's spices programme. One row per programme geography (currently Indian states), giving the share of each turmeric channel estimated to be adulterated with lead chromate. External table backed by a Google Sheet."
+});

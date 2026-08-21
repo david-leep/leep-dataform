@@ -1,0 +1,31 @@
+config {
+  type: "table",
+  schema: "spices",
+  name: "stg_spices_assumptions",
+  tags: ["staging"],
+  description: "Turmeric adulteration assumptions, one row per spices programme geography. Each pctg_* column is the estimated share of that turmeric channel adulterated with lead chromate.",
+  assertions: {
+    uniqueKey: ["program_name"],
+    nonNull: ["program_name"],
+    rowConditions: [
+      "pctg_packaged_branded_powders_adulterated BETWEEN 0 AND 1",
+      "pctg_packaged_unbranded_powders_adulterated BETWEEN 0 AND 1",
+      "pctg_fresh_roots_locally_grown_roots_adulterated BETWEEN 0 AND 1",
+      "pctg_of_turmeric_roots_adulterated BETWEEN 0 AND 1",
+      "pctg_of_loose_turmeric_powder_adulterated BETWEEN 0 AND 1",
+      "pctg_of_turmeric_market_adulterated BETWEEN 0 AND 1"
+    ]
+  }
+}
+
+SELECT
+  program_name,
+  pctg_packaged_branded_powders_adulterated,
+  pctg_packaged_unbranded_powders_adulterated,
+  pctg_fresh_roots_locally_grown_roots_adulterated,
+  pctg_of_turmeric_roots_adulterated,
+  pctg_of_loose_turmeric_powder_adulterated,
+  pctg_of_turmeric_market_adulterated
+FROM
+  ${ref("spices_assumptions")}
+WHERE program_name IS NOT NULL
