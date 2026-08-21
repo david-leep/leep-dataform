@@ -4,6 +4,12 @@ config {
   disabled: dataform.projectConfig.vars.createExternalTables !== "true"
 }
 
+-- Every statement here is CREATE OR REPLACE: metadata-only, idempotent, and safe
+-- to re-run. Touching this file is therefore the supported way to rebuild an
+-- external table -- after a sheet's columns change, or if a table is dropped by
+-- hand. The production job only passes createExternalTables=true when this file
+-- appears in the merge diff, so an edit here is what triggers the rebuild.
+
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.counterfactual`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
