@@ -114,7 +114,41 @@ For a quick edit when you don't want to open VS Code, Dataform's browser UI mirr
 4. **Push and open a PR.** Click **Push to remote**, then go to the [GitHub repo](https://github.com/david-leep/leep-dataform) and click **Compare & pull request**. Describe what changed, request review from David, and don't merge your own PR.
 5. **After merge**, either **Pull from remote** to reuse the workspace, or create a fresh one for your next change.
 
-You can run the pipeline into your sandbox from the UI's **Start execution** button — always confirm it targets your workspace, never production.
+You can run the pipeline into your sandbox from the UI's **Start execution** button — always
+confirm it targets your workspace, never production. Executions run as a service account
+rather than as you, so check the target carefully; see *Who can write what* below.
+
+---
+
+## Who can write what (access model)
+
+> **Status: rolling out.** This describes the target setup. Until it is in place,
+> production is protected by convention (`--schema-suffix`) rather than by permissions.
+
+The short version: **you can read production, but you cannot write it.** Only the
+automated pipeline can, and only after a PR is merged and a human approves the run.
+
+| You want to | Works? |
+|---|---|
+| `dataform compile` | Yes — no credentials needed |
+| `dataform run --schema-suffix yourname` | Yes — writes your own sandbox |
+| `dataform run` with the suffix forgotten | **No** — fails with `Access Denied` |
+| Start an execution from the Dataform UI into your workspace | Yes |
+| Start an execution from the Dataform UI into production | **No** — fails |
+| Create or refresh an external table by hand | **No** — see below |
+| Merge to `main`, then approve the production run | Yes — this is the only path to production |
+
+Your Google account gets `dataViewer` on `paint`, `core`, and `dataform_assertions`, and
+full rights on the sandboxes you create. Sandbox runs read production sources directly,
+so read access is essential and never restricted.
+
+Access is granted through the `dataform-users@leadelimination.org` group, which carries
+three things at once: view access to the source Google Sheets, permission to use the
+`gcloud` CLI with the Drive scope, and your BigQuery roles. Ask David to be added.
+
+**Why it is set up this way.** A forgotten `--schema-suffix` used to overwrite the real
+dashboards silently. Now it returns a permission error instead. The convention still
+applies — this is a backstop underneath it, not a replacement for care.
 
 ---
 
@@ -133,7 +167,16 @@ OPTIONS (
 );
 ```
 
-Run this file manually once in BigQuery or via the Dataform UI after adding it. The file is tagged `disabled: true` so it does not run automatically on every pipeline execution. **Also share the sheet with the account running the pipeline**, or the external table can't read it.
+External tables live in production, so you cannot create them yourself. Add the DDL above
+in your PR; once it is merged, David runs the **Create external tables** workflow in GitHub
+Actions (Actions tab → *Create external tables* → **Run workflow**), which executes the file
+as the pipeline service account behind the same approval gate as a production run. The file
+is tagged `disabled: true` so it never runs during a normal pipeline execution.
+
+**Also share the sheet with `dataform-users@leadelimination.org` and with the pipeline
+service account**, or the external table can't read it. Note that BigQuery caches the
+sheet's *schema* from when the DDL last ran — if a column is renamed later, the external
+table won't see it until the workflow is run again.
 
 **2. Declare the source** in `definitions/sources.js`:
 
