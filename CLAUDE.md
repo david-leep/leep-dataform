@@ -39,6 +39,9 @@ to git, SQL, and Claude Code. When you help them:
    (`paint`) is **production** — the real numbers on the dashboards. A suffixed run
    writes to a private sandbox (e.g. `paint_sarah`) and cannot touch production.
    If a user asks you to run the pipeline, always add `--schema-suffix <theirname>`.
+   Local runs act as the `dataform-sandbox` service account, which has no write access
+   to production, so omitting the flag fails with `Access Denied` rather than
+   overwriting anything. Treat that as a backstop, not a licence to omit the flag.
 3. **Run `dataform compile` after every edit** to a `.sqlx` or `sources.js` file. It
    needs no credentials, has zero risk, and takes seconds. Fix compile errors before
    moving on. Do this reflexively, not just before committing.
@@ -143,5 +146,9 @@ downstream through the explicit column lists in `int_paint_program_base` and
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
 (3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns. The DDL
-file is tagged `disabled: true` so it doesn't run on every pipeline execution — it must
-be run manually once.
+file is tagged `disabled: true` so it doesn't run on every pipeline execution. External
+tables live in production datasets, which researchers cannot write — the DDL goes in the
+PR and a maintainer runs it after merge. Tell the user to share the sheet with both
+service accounts (`dataform-sandbox` and `dataform-executor`), and warn them the new
+source can't be tested end to end until after the merge, since declarations aren't
+schema-suffixed.

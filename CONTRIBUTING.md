@@ -97,10 +97,13 @@ You don't need to memorise git or SQL — you need a handful of ways to ask. Kee
 To refresh tables into your sandbox after a change (or just to see current output), run with your suffix — **never** a plain `dataform run`:
 
 ```bash
-dataform run --schema-suffix yourname --actions paint_country_summary
+dataform run --schema-suffix yourname --actions paint_summary_by_country
 ```
 
-You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect, still safe as long as it targets your workspace, not production.
+Note the action name is `paint_summary_by_country`, even though the file is called
+`paint_country_summary.sqlx` — `--actions` matches the table name in the `config` block.
+
+You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect. Target your workspace, not production; if you get it wrong the run fails on permissions rather than overwriting anything.
 
 ---
 
@@ -122,33 +125,63 @@ rather than as you, so check the target carefully; see *Who can write what* belo
 
 ## Who can write what (access model)
 
-> **Status: rolling out.** This describes the target setup. Until it is in place,
-> production is protected by convention (`--schema-suffix`) rather than by permissions.
+The short version: **you can read production, but you cannot write it.** Production is
+written by one automated identity, and only after a PR is merged.
 
-The short version: **you can read production, but you cannot write it.** Only the
-automated pipeline can, and only after a PR is merged and a human approves the run.
+### The two service accounts
+
+You never run the pipeline as yourself. Local runs and Dataform UI runs act as a service
+account, and which one decides what can be written.
+
+| | `dataform-sandbox` | `dataform-executor` |
+|---|---|---|
+| **Who uses it** | You — every local run | GitHub Actions, after a merge to `main` |
+| **How** | You impersonate it (no key, no password) | A key held only as a GitHub secret |
+| **Reads production** | Yes — all of `paint`, `core`, `dataform_assertions` | Yes |
+| **Writes production** | **No** | Yes |
+| **Writes sandboxes** | Yes — any `paint_*`, `core_*`, `dataform_assertions_*` | Writes `paint_ci` on PRs |
+
+`dataform-sandbox` holds `bigquery.dataEditor` under an IAM condition that only matches
+dataset names with a suffix — `paint_sarah` matches, `paint` does not. That single
+condition is what makes a forgotten `--schema-suffix` fail instead of overwriting the
+dashboards. Nobody can impersonate `dataform-executor`; the permission is granted on
+`dataform-sandbox` alone.
+
+> **Note for new pipelines:** the condition matches `paint_`, `core_`, and
+> `dataform_assertions_` only. If a new production dataset is added later, sandbox runs
+> against it will fail with a permission error until the condition is extended.
+
+### What this means day to day
 
 | You want to | Works? |
 |---|---|
 | `dataform compile` | Yes — no credentials needed |
 | `dataform run --schema-suffix yourname` | Yes — writes your own sandbox |
-| `dataform run` with the suffix forgotten | **No** — fails with `Access Denied` |
-| Start an execution from the Dataform UI into your workspace | Yes |
-| Start an execution from the Dataform UI into production | **No** — fails |
-| Create or refresh an external table by hand | **No** — see below |
-| Merge to `main`, then approve the production run | Yes — this is the only path to production |
+| `dataform run` with the suffix forgotten | **No** — `Access Denied`, nothing is written |
+| Read any production table, in the console or a query | Yes |
+| Overwrite a sandbox you created earlier | Yes |
+| Create or refresh an external table yourself | **No** — see *Adding a new Google Sheet source* |
+| Merge to `main`, then approve the production run | Yes — the normal path to production |
 
-Your Google account gets `dataViewer` on `paint`, `core`, and `dataform_assertions`, and
-full rights on the sandboxes you create. Sandbox runs read production sources directly,
-so read access is essential and never restricted.
+Access comes from the **`research@leadelimination.org`** group, which carries both the
+permission to impersonate `dataform-sandbox` and read access to BigQuery. Ask David to be
+added. The source Google Sheets are read by the service account, not by you, so you do not
+need any Drive setup.
 
-Access is granted through the `dataform-users@leadelimination.org` group, which carries
-three things at once: view access to the source Google Sheets, permission to use the
-`gcloud` CLI with the Drive scope, and your BigQuery roles. Ask David to be added.
+### Sanctioned exceptions
 
-**Why it is set up this way.** A forgotten `--schema-suffix` used to overwrite the real
-dashboards silently. Now it returns a permission error instead. The convention still
-applies — this is a backstop underneath it, not a replacement for care.
+Two things can write production without a merge. Both are deliberate:
+
+- **A maintainer running the pipeline from the Dataform UI.** Used to re-run production
+  on demand. Requires Dataform permissions that researchers do not have.
+- **The quarterly World Bank ingest** (`monthly-pipeline-sa`), which refreshes
+  `core.indicators_long` on a Cloud Scheduler trigger, independently of this repo.
+
+### Why it is set up this way
+
+A forgotten `--schema-suffix` used to silently overwrite the real dashboards. Now it
+returns a permission error. The convention still applies — always pass the flag — but
+there is a backstop underneath it rather than care alone.
 
 ---
 
@@ -167,16 +200,43 @@ OPTIONS (
 );
 ```
 
-External tables live in production, so you cannot create them yourself. Add the DDL above
-in your PR; once it is merged, David runs the **Create external tables** workflow in GitHub
-Actions (Actions tab → *Create external tables* → **Run workflow**), which executes the file
-as the pipeline service account behind the same approval gate as a production run. The file
-is tagged `disabled: true` so it never runs during a normal pipeline execution.
+External tables live in production datasets, which you cannot write. **Do not run this DDL
+in the BigQuery console** — it will fail, and it is not how the change gets made. Put the
+DDL in your PR like any other change; a maintainer executes it after the merge.
 
-**Also share the sheet with `dataform-users@leadelimination.org` and with the pipeline
-service account**, or the external table can't read it. Note that BigQuery caches the
-sheet's *schema* from when the DDL last ran — if a column is renamed later, the external
-table won't see it until the workflow is run again.
+**Before you open the PR, share the sheet with both service accounts** as Viewer:
+
+- `dataform-sandbox@leep-data-system.iam.gserviceaccount.com` — so sandbox runs can read it
+- `dataform-executor@leep-data-system.iam.gserviceaccount.com` — so production runs can read it
+
+The sheets are read by the service account, never by your own Google account, so sharing it
+with yourself is not enough.
+
+The file is tagged `disabled: true` so it never runs during a normal pipeline execution.
+
+**One ordering quirk to expect.** Sources are declared, not built, so `--schema-suffix` does
+not apply to them: your sandbox reads production's external tables. A brand-new source
+therefore cannot be tested end to end until the external table exists in production — i.e.
+until after the merge. Sequence: open the PR → maintainer merges and runs the DDL → then run
+the pipeline in your sandbox to check the staging table. Everything downstream of staging is
+testable as normal.
+
+**If a sheet's columns change later**, the external table keeps serving the schema captured
+when the DDL last ran. A maintainer has to re-run it before the new column appears.
+
+<details>
+<summary><strong>For maintainers: running the DDL after merge</strong></summary>
+
+External table DDL is the one production change not made by the Dataform pipeline. After
+merging, run the statements in `definitions/sources/external_tables.sqlx` (everything below
+the `config` block) in the BigQuery console as an account with write access to the target
+dataset. `CREATE OR REPLACE EXTERNAL TABLE` is idempotent, so running the whole file is
+safe and also refreshes any sheet whose schema has changed.
+
+Confirm the sheet is shared with both service accounts first, or the table will be created
+but unreadable — which fails later, during a pipeline run, rather than here.
+
+</details>
 
 **2. Declare the source** in `definitions/sources.js`:
 
