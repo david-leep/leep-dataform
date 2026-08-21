@@ -213,9 +213,9 @@ Sheets are read by the service account, never by your own Google account, so sha
 yourself is not enough. This is the step people forget: the table gets created fine and then
 the pipeline fails later with a Drive error.
 
-**Changing a sheet's columns** needs no special handling either. The external table serves
-whatever schema was captured when the DDL last ran, and the production job re-runs it on
-every execution — so the next production run picks the change up.
+**If a sheet's columns change** and you need the external table to see them, edit
+`external_tables.sqlx` — even trivially — and merge. The DDL runs when that file changes, so
+touching it is what triggers the refresh.
 
 **One ordering quirk.** Sources are *declared*, not built, so `--schema-suffix` doesn't apply
 to them and your sandbox reads production's external tables. A brand-new source therefore
@@ -234,9 +234,9 @@ disabled: dataform.projectConfig.vars.createExternalTables !== "true"
 
 `createExternalTables` defaults to `"false"` in `workflow_settings.yaml`, so the action is
 disabled for every local and sandbox run. The production job in `.github/workflows/dataform-ci.yml`
-runs `dataform run --vars=createExternalTables=true`, which enables it. `CREATE OR REPLACE
-EXTERNAL TABLE` is idempotent, so re-running it each time is harmless and keeps the external
-tables matching the repo.
+checks whether the merge changed `external_tables.sqlx`, and only then passes
+`--vars=createExternalTables=true`. Merges that don't touch the file run the pipeline without
+re-issuing the DDL.
 
 If you ever need to execute it locally, `--vars=createExternalTables=true` would do it — but
 it writes production datasets, so it will fail unless you have production write.
