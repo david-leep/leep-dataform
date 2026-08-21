@@ -83,12 +83,15 @@ The two mart outputs:
 
 Sources are declared in `definitions/sources.js` (native BigQuery tables) and created
 as external tables in `definitions/sources/external_tables.sqlx` (Google Sheets-backed).
+Every staging table reading a sheet-backed source must declare `dependencies: ["external_tables"]`
+so the DDL is ordered ahead of it — see the recipe at the end of this file.
 
 ---
 
 ## Project facts
 
-- Dataform + BigQuery. GCP project: `leep-data-system`. Region: `europe-west4` (EU).
+- Dataform + BigQuery. GCP project: `leep-data-system`. Dataset location: `EU` (multi-region).
+  New datasets must be created as `EU` — a single-region dataset cannot be joined against these.
 - Dataform Core version: `3.0.42` (see `workflow_settings.yaml`). Default dataset:
   `paint` (production). Assertions dataset: `dataform_assertions`.
 - External tables are backed by **Google Sheets**. The data is live, but
@@ -145,7 +148,13 @@ downstream through the explicit column lists in `int_paint_program_base` and
 
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
-(3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns. The DDL
+(3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns **and
+`dependencies: ["external_tables"]`**. That dependency is mandatory and easy to forget —
+`${ref()}` resolves to the declaration, which is an inert node carrying no ordering, so
+without it Dataform may build the staging table before the DDL has created the source.
+It compiles clean either way and only fails on the source's very first run, with
+`Not found: Table ... was not found in location EU`. Only sheet-backed sources need it;
+staging over native BigQuery tables has no DDL to wait for. The DDL
 file is gated behind the `createExternalTables` var, so it is skipped in every run except
 the production job (which passes `--vars=createExternalTables=true`). That means merging
 the PR creates the table — there is no manual DDL step. Tell the user to share the sheet

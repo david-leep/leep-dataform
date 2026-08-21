@@ -216,11 +216,19 @@ the pipeline fails later with a Drive error.
 `external_tables.sqlx` — even trivially — and merge. The DDL runs when that file changes, so
 touching it is what triggers the refresh.
 
-**One ordering quirk.** Sources are *declared*, not built, so `--schema-suffix` doesn't apply
-to them and your sandbox reads production's external tables. A brand-new source therefore
-can't be tested end to end until after the merge. Sequence: open the PR → it merges → the
-production run creates the table → then run the pipeline in your sandbox to check the staging
-table. Everything downstream of staging is testable as normal.
+**One ordering quirk, with two consequences.** Sources are *declared*, not built. A declaration
+is an inert graph node: it names a table, but it neither creates one nor depends on whatever does.
+
+*First,* `--schema-suffix` doesn't apply to declarations, so your sandbox reads production's
+external tables. A brand-new source can't be tested end to end until after the merge. Sequence:
+open the PR → it merges → the production run creates the table → then run the pipeline in your
+sandbox to check the staging table. Everything downstream of staging is testable as normal.
+
+*Second,* a declaration carries no ordering, so a staging table that only `ref()`s its source can
+be scheduled **before** the DDL that creates it. This is why every sheet-backed staging file
+declares `dependencies: ["external_tables"]`. It bites only on a source's first run — once the
+external table exists, later runs find it there regardless of order — which is exactly what makes
+it easy to introduce and hard to notice.
 
 <details>
 <summary><strong>How the DDL gets executed</strong></summary>
@@ -260,7 +268,9 @@ This tells Dataform the table exists so `${ref("<table_name>")}` resolves correc
 config {
   type: "table",
   name: "stg_<table_name>",
-  tags: ["staging"]
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"]
 }
 
 SELECT
@@ -271,6 +281,19 @@ WHERE column_a IS NOT NULL
 ```
 
 Use explicit column names rather than `SELECT *` to make schema changes visible. Filter out null/header rows.
+
+**The `dependencies: ["external_tables"]` line is required**, and is easy to leave out because
+everything still compiles without it. `${ref()}` points at the *declaration*, which is an inert
+node — it creates no ordering relationship with the action that issues the `CREATE EXTERNAL TABLE`.
+Without the explicit dependency, Dataform is free to build your staging table before the DDL has
+run, and the first production run after the merge fails with:
+
+```
+bigquery error: Not found: Table leep-data-system:<dataset>.<table_name> was not found in location EU
+```
+
+Only sheet-backed sources need this. Staging tables over native BigQuery tables
+(`stg_country`, `stg_indicators_long`) have no DDL to wait for.
 
 ---
 
@@ -302,7 +325,7 @@ config {
 }
 ```
 
-3. Reference upstream tables with `${ref("table_name")}` — never hardcode BigQuery paths (except for unmanaged external tables like `stg_discount_rates`, which uses a hardcoded path because it sits in a different schema)
+3. Reference upstream tables with `${ref("table_name")}` — never hardcode BigQuery paths (except for undeclared external tables like `stg_discount_rates`, which uses a hardcoded path because it has no `declare()` entry — it still needs `dependencies: ["external_tables"]` for ordering)
 4. One transformation per file. If a CTE is getting complex enough to be reused, it probably belongs in its own intermediate table.
 
 ---

@@ -2,6 +2,8 @@ config {
   type: "table",
   name: "stg_assumptions",
   tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
   assertions: {
     nonNull: [
       "percentage_newly_painted_homes_per_year",
