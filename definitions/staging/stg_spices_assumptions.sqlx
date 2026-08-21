@@ -3,6 +3,7 @@ config {
   schema: "spices",
   name: "stg_spices_assumptions",
   tags: ["staging"],
+  dependencies: ["external_tables"],
   description: "Turmeric adulteration assumptions, one row per spices programme geography. Each pctg_* column is the estimated share of that turmeric channel adulterated with lead chromate.",
   assertions: {
     uniqueKey: ["program_name"],
