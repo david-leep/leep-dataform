@@ -322,14 +322,14 @@ int_lead_paint_market_share  (market share per country per month)
         ↓
 int_paint_program_base       (children averted, cBLL averted)
         ↓
-paint_country_summary        (DALYs, discounting, tier)
+paint_summary_by_country     (DALYs, discounting, tier)
 ```
 
 ---
 
 ## Testing changes
 
-**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production — running there overwrites real data that Looker Studio and the team depend on. Work through this ladder before opening a PR, cheapest and lowest-risk first. Claude Code does the typing; **your job is to read and judge the output at each rung.**
+**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production. You no longer *can* write there — the run fails with `Access Denied` — but treat the flag as the rule, not the error message as the backstop. Work through this ladder before opening a PR, cheapest and lowest-risk first. Claude Code does the typing; **your job is to read and judge the output at each rung.**
 
 ### 1. Compile check
 
@@ -367,7 +367,7 @@ Assertions defined in each table's `config` block (`uniqueKey`, `nonNull`, `rowC
 
 Once a sandbox run is clean, confirm the change actually did what you intended — this is the step that verifies correctness, not just that nothing broke. Ask Claude Code to compare your sandbox mart against prod, e.g.:
 
-> Write a query comparing `paint_<yourname>.paint_country_summary` to `paint.paint_country_summary` — show me which rows and columns differ.
+> Write a query comparing `paint_<yourname>.paint_summary_by_country` to `paint.paint_summary_by_country` — show me which rows and columns differ.
 
 Read the diff yourself and judge whether it matches what you meant to change:
 - Are the rows that changed the ones you expected to change (and no others)?
@@ -382,7 +382,7 @@ Once you're satisfied, open a PR (see below).
 
 ## Viewing results in Looker Studio
 
-The mart tables (`paint_country_summary`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
+The mart tables (`paint_summary_by_country`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
 
 **To find a column:**
 1. Open the relevant Looker Studio report

@@ -229,7 +229,7 @@ No errors = the code still makes sense. Ask Claude Code to fix any errors it rep
 
 **Step 4 — (When your change affects numbers) run it in your sandbox and check.** For a comment change you can skip this, but for real changes:
 ```bash
-dataform run --schema-suffix yourname --actions paint_country_summary
+dataform run --schema-suffix yourname --actions paint_summary_by_country
 ```
 Then ask Claude Code to help you check the result in BigQuery. Session 3 covers this "verification ladder" in full.
 
@@ -259,7 +259,7 @@ git push -u origin yourname-first-change
 
 1. **Never edit on `main`.** Always make a branch first (`git checkout -b yourname-thing`).
 2. **Always `dataform compile` after an edit.** It's free and catches most mistakes.
-3. **Always run with `--schema-suffix yourname`.** Never run a plain `dataform run` — that could touch production.
+3. **Always run with `--schema-suffix yourname`.** A plain `dataform run` targets production; it will fail on permissions, but don't rely on that — pass the flag.
 4. **Never open a PR with a line you can't explain.** Claude Code will explain any line — ask it. If you can't explain it, you're not ready to propose it.
 
 ---
