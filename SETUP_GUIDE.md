@@ -121,7 +121,17 @@ You should now see the project's files in VS Code's left sidebar — `definition
 
 ## Part 6 — Connect to BigQuery (Google Cloud login)
 
-This lets you actually **run** the pipeline and check the numbers, not just compile it. Our source tables are backed by Google Sheets, so your login needs both BigQuery **and** Google Drive permission — the extra Drive scope in step 3 is what makes the Sheets-backed tables readable.
+This lets you actually **run** the pipeline and check the numbers, not just compile it.
+
+You never run the pipeline as yourself. Your login lets you *borrow* a dedicated pipeline
+identity called `dataform-sandbox`, which can write your own sandbox datasets but **cannot
+write production** — so a mistyped command fails with a permission error instead of
+overwriting the real dashboards. It also means you need no Google Drive setup: the source
+spreadsheets are read by that identity, not by your account.
+
+**Before you start:** ask David to add you to `research@leadelimination.org`. That group
+grants both the permission to borrow the pipeline identity and read access to BigQuery.
+Nothing below will work until you are in it.
 
 1. **Install the Google Cloud CLI:**
    - **Mac:** easiest is via Homebrew if you have it (`brew install --cask google-cloud-sdk`). If you don't have Homebrew, follow the installer at <https://cloud.google.com/sdk/docs/install-sdk> (choose macOS).
@@ -130,16 +140,24 @@ This lets you actually **run** the pipeline and check the numbers, not just comp
    ```bash
    gcloud --version
    ```
-3. **Log in with both scopes** (BigQuery + Drive). Copy this whole command:
+3. **Log in as yourself** (this identifies you to Google Cloud):
    ```bash
-   gcloud auth application-default login --scopes=https://www.googleapis.com/auth/cloud-platform,https://www.googleapis.com/auth/drive.readonly
+   gcloud auth login
    ```
-   A browser window opens — log in with your **LEEP Google account** and click **Allow**. You must use the LEEP account that has access to the source sheets; ask David to confirm you have access if a run later fails on a `stg_` table.
+   A browser window opens — log in with your **LEEP Google account**.
 4. **Set the project:**
    ```bash
    gcloud config set project leep-data-system
    ```
-5. **Create the Dataform credentials file.** From inside `leep-dataform`, run:
+5. **Set up the pipeline identity.** Copy this whole command:
+   ```bash
+   gcloud auth application-default login \
+     --impersonate-service-account=dataform-sandbox@leep-data-system.iam.gserviceaccount.com
+   ```
+   Log in with the same LEEP account and click **Allow**. This is what lets tools on your
+   machine act as `dataform-sandbox`. No password or key file is involved, and access is
+   removed the moment you leave the group.
+6. **Create the Dataform credentials file.** From inside `leep-dataform`, run:
    ```bash
    dataform init-creds
    ```
@@ -149,7 +167,7 @@ This lets you actually **run** the pipeline and check the numbers, not just comp
 ```bash
 dataform run --schema-suffix yourname --tags staging
 ```
-Replace `yourname` with your first name. The `--schema-suffix` part is critical: it writes the results into datasets named `paint_yourname` instead of the real `paint` dataset. **You cannot touch the real numbers this way.** Always use `--schema-suffix` when you run. (More on this in Session 3.)
+Replace `yourname` with your first name. The `--schema-suffix` part writes the results into datasets named `paint_yourname` instead of the real `paint` dataset. Always use it — and if you forget, the run now fails with `Access Denied` rather than touching production, because the pipeline identity you borrowed has no write access there. (More on this in Session 3.)
 
 ---
 
@@ -174,7 +192,7 @@ use it as a panel docked inside VS Code, right next to your files.
    Follow the prompts.
 7. You now have a chat panel **inside the project**, which means Claude Code can see all
    the files. Try asking it something real:
-   > Explain what the file definitions/marts/paint_country_summary.sqlx does, in plain English.
+   > Explain what the file definitions/marts/paint_summary_by_country.sqlx does, in plain English.
 
    It'll read the file and explain. This is the core loop: you ask, it reads/explains/edits,
    you review. **Keep the `leep-dataform` folder open in VS Code every time** so the panel
@@ -199,7 +217,7 @@ git checkout -b yourname-first-change
 The last command creates and switches to your branch. Name it after yourself and what you're doing, e.g. `sarah-add-note`.
 
 **Step 2 — Make a change with Claude Code.** Open the Claude Code panel in VS Code and ask for something tiny and safe, like improving a description:
-> In definitions/marts/paint_country_summary.sqlx, improve the comment at the top to describe what the table contains. Show me the change before saving.
+> In definitions/marts/paint_summary_by_country.sqlx, improve the comment at the top to describe what the table contains. Show me the change before saving.
 
 Read what it proposes. If it looks right, let it make the edit.
 
@@ -211,14 +229,14 @@ No errors = the code still makes sense. Ask Claude Code to fix any errors it rep
 
 **Step 4 — (When your change affects numbers) run it in your sandbox and check.** For a comment change you can skip this, but for real changes:
 ```bash
-dataform run --schema-suffix yourname --actions paint_country_summary
+dataform run --schema-suffix yourname --actions paint_summary_by_country
 ```
 Then ask Claude Code to help you check the result in BigQuery. Session 3 covers this "verification ladder" in full.
 
 **Step 5 — Save your change to your branch ("commit").** A commit is a labeled snapshot of your edits.
 ```bash
 git add -A
-git commit -m "Improve description on paint_country_summary"
+git commit -m "Improve description on paint_summary_by_country"
 ```
 The `-m` message should say what you did, in a few words.
 
@@ -241,7 +259,7 @@ git push -u origin yourname-first-change
 
 1. **Never edit on `main`.** Always make a branch first (`git checkout -b yourname-thing`).
 2. **Always `dataform compile` after an edit.** It's free and catches most mistakes.
-3. **Always run with `--schema-suffix yourname`.** Never run a plain `dataform run` — that could touch production.
+3. **Always run with `--schema-suffix yourname`.** A plain `dataform run` targets production; it will fail on permissions, but don't rely on that — pass the flag.
 4. **Never open a PR with a line you can't explain.** Claude Code will explain any line — ask it. If you can't explain it, you're not ready to propose it.
 
 ---
@@ -254,7 +272,9 @@ git push -u origin yourname-first-change
 | `code .` doesn't open VS Code (Mac) | Open VS Code → `Cmd+Shift+P` → type "install code command in PATH" → run it. Then retry. |
 | Cloning or pushing asks for a password and fails | GitHub dropped password login. Complete the login in the **browser** window that opens instead. |
 | `dataform compile` says it can't find the project | You're not inside the folder. Run `cd ~/leep-dataform` first. |
-| A `dataform run` fails on a `stg_` table with a permissions/Drive error | Your Google login is missing the Drive scope, or your account can't see the source sheet. Redo Part 6 step 3, and ask David to confirm sheet access. |
+| `Permission 'iam.serviceAccounts.getAccessToken' denied` | You're not in `research@leadelimination.org` yet, or Part 6 step 5 wasn't run. Ask David to add you, then redo step 5. |
+| A `dataform run` fails on a `stg_` table with a Drive error | The source sheet isn't shared with the pipeline service account. Ask David — it isn't about your own access to the sheet. |
+| `Access Denied` writing to `paint` or `core` | You left off `--schema-suffix yourname`. This is the guardrail working; add the flag and re-run. |
 | Claude Code doesn't seem to know about our files | The `leep-dataform` folder isn't open in VS Code. File → Open Folder → choose `leep-dataform`, then reopen the Claude Code panel. |
 | Claude Code extension panel says it can't find Claude Code | Part 7 step 1 (the `npm install`) didn't finish. Open a terminal, re-run it, then reload VS Code. |
 

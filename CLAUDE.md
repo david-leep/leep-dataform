@@ -39,6 +39,9 @@ to git, SQL, and Claude Code. When you help them:
    (`paint`) is **production** — the real numbers on the dashboards. A suffixed run
    writes to a private sandbox (e.g. `paint_sarah`) and cannot touch production.
    If a user asks you to run the pipeline, always add `--schema-suffix <theirname>`.
+   Local runs act as the `dataform-sandbox` service account, which has no write access
+   to production, so omitting the flag fails with `Access Denied` rather than
+   overwriting anything. Treat that as a backstop, not a licence to omit the flag.
 3. **Run `dataform compile` after every edit** to a `.sqlx` or `sources.js` file. It
    needs no credentials, has zero risk, and takes seconds. Fix compile errors before
    moving on. Do this reflexively, not just before committing.
@@ -71,11 +74,11 @@ int_lead_paint_market_share  baseline vs current lead-paint market share per cou
         ↓ (both feed)
 int_paint_program_base       children with averted lead exposure (potential and to-date)
         ↓
-paint_country_summary        health + income DALYs, time discounting, probability weighting, tier A–D
+paint_summary_by_country     health + income DALYs, time discounting, probability weighting, tier A–D
 ```
 
 The two mart outputs:
-- `paint_country_summary` — DALY impact per country (potential and to-date).
+- `paint_summary_by_country` — DALY impact per country (potential and to-date).
 - `mart_industry_country_summary` — manufacturer engagement milestones and paint volumes.
 
 Sources are declared in `definitions/sources.js` (native BigQuery tables) and created
@@ -138,10 +141,14 @@ Sheet source) and the full testing ladder.
 
 **Add a column to an existing table:** add it to the staging `SELECT`, then trace it
 downstream through the explicit column lists in `int_paint_program_base` and
-`paint_country_summary` so it survives to the mart. Compile, sandbox-run, check.
+`paint_summary_by_country.sqlx` so it survives to the mart. Compile, sandbox-run, check.
 
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
 (3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns. The DDL
-file is tagged `disabled: true` so it doesn't run on every pipeline execution — it must
-be run manually once.
+file is gated behind the `createExternalTables` var, so it is skipped in every run except
+the production job (which passes `--vars=createExternalTables=true`). That means merging
+the PR creates the table — there is no manual DDL step. Tell the user to share the sheet
+with both service accounts (`dataform-sandbox` and `dataform-executor`), and warn them the
+new source can't be tested end to end until after the merge, since declarations aren't
+schema-suffixed.

@@ -4,6 +4,14 @@ SQL transformation pipeline for LEEP data, built with [Dataform](https://cloud.g
 
 This repo is connected to the Dataform project in GCP (`leep-data-system`, region `europe-west4`). Changes made here are reflected in the Dataform UI, and changes made in the Dataform UI are committed back to this repo.
 
+## Access
+
+Production (`paint`, `core`, `dataform_assertions`) is read-only for everyone. Local runs act
+as the `dataform-sandbox` service account and can only write suffixed sandbox datasets;
+production is written by the CI job after a merge to `main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) § Who can write what, and [SETUP_GUIDE.md](SETUP_GUIDE.md)
+Part 6 for first-time setup.
+
 ## What this does
 
 Raw data is ingested into BigQuery by Cloud Functions (see [leep-data-system](https://github.com/david-leep/leep-data-system)). This Dataform project takes those raw tables and transforms them into analysis-ready tables.
@@ -33,7 +41,7 @@ definitions/
 │   ├── int_lead_paint_market_share.sqlx  # Baseline and current lead paint market share per country per month (current excludes reformulated manufacturers)
 │   └── int_paint_program_base.sqlx   # Joins all sources; computes exposure and children averted (potential and to-date)
 └── marts/                            # Final output tables used for analysis and reporting
-    ├── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
+    ├── paint_summary_by_country.sqlx # DALY estimates per country (undiscounted, discounted, probability-weighted)
     └── mart_industry_country_summary.sqlx  # Manufacturer milestone counts and volumes per country
 ```
 
@@ -110,19 +118,24 @@ definitions/
 - **intermediate/** — joins staging tables together and computes derived metrics; not the final output but too complex to live in a mart
 - **marts/** — reads from intermediate tables and produces the final analysis-ready output
 
-Each layer has a tag so you can run selectively:
+Each layer has a tag so you can run selectively. Always pass `--schema-suffix <yourname>` —
+runs without it target production and will fail on permissions:
 
 ```bash
-dataform run --tags sources
-dataform run --tags staging
-dataform run --tags intermediate
-dataform run --tags marts
+dataform run --schema-suffix <yourname> --tags staging
+dataform run --schema-suffix <yourname> --tags intermediate
+dataform run --schema-suffix <yourname> --tags marts
 ```
 
-Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on first run. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.
+The `sources` tag holds the external table DDL, which is skipped unless
+`--vars=createExternalTables=true` is passed. Only the production CI job does that, and only
+when `external_tables.sqlx` changes — so `--tags sources` does nothing locally. See
+[CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new Google Sheet source.
+
+Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on the first run in a fresh sandbox. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.
 
 ```bash
-dataform run --tags intermediate --full-refresh  # first run only
+dataform run --schema-suffix <yourname> --actions int_industry_full --full-refresh  # first run in a sandbox
 ```
 
 ## Key calculations (paint pipeline)
@@ -146,7 +159,7 @@ Split across two datasets in `leep-data-system`:
 |---|---|---|
 | `country_metadata` | `core` | Country classifications — income group, country code |
 | `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
-| `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
+| `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Tracker Data" tab) — column names auto-detected and cleaned at runtime |
 | `counterfactual` | `paint` | Counterfactual scenario assumptions per country — market shift timing, reduction target, program metadata (program, status, source_of_funding) |
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
 | `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
