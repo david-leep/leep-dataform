@@ -43,7 +43,7 @@ You can also just ask: *"Start me a new branch called sarah-add-region-column."*
 
 **2. Understand before you change.** Ask Claude Code to orient you first:
 
-> Explain what `definitions/marts/paint_country_summary.sqlx` does in plain English, and show me where `tier` is calculated.
+> Explain what `definitions/marts/paint_summary_by_country.sqlx` does in plain English, and show me where `tier` is calculated.
 
 Read the answer. If you can't yet say what the file does in a sentence, keep asking. This is the step that prevents most mistakes.
 
@@ -100,8 +100,7 @@ To refresh tables into your sandbox after a change (or just to see current outpu
 dataform run --schema-suffix yourname --actions paint_summary_by_country
 ```
 
-Note the action name is `paint_summary_by_country`, even though the file is called
-`paint_country_summary.sqlx` — `--actions` matches the table name in the `config` block.
+`--actions` takes the table name from the `config` block, which matches the file name.
 
 You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect. Target your workspace, not production; if you get it wrong the run fails on permissions rather than overwriting anything.
 
@@ -285,7 +284,7 @@ Common pattern — adding a column from `stg_counterfactual` all the way to the 
 - Add to `stg_counterfactual.sqlx` (or confirm it comes through via `SELECT *`)
 - Add to the `joined` CTE in `int_paint_program_base.sqlx` (explicit list)
 - Add to the final `SELECT` in `int_paint_program_base.sqlx`
-- Add to the final `SELECT` in `paint_country_summary.sqlx` (intermediate CTEs use `SELECT *` so they pass through automatically)
+- Add to the final `SELECT` in `paint_summary_by_country.sqlx` (intermediate CTEs use `SELECT *` so they pass through automatically)
 
 ---
 

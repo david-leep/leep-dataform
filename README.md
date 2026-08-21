@@ -41,7 +41,7 @@ definitions/
 │   ├── int_lead_paint_market_share.sqlx  # Baseline and current lead paint market share per country per month (current excludes reformulated manufacturers)
 │   └── int_paint_program_base.sqlx   # Joins all sources; computes exposure and children averted (potential and to-date)
 └── marts/                            # Final output tables used for analysis and reporting
-    ├── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
+    ├── paint_summary_by_country.sqlx # DALY estimates per country (undiscounted, discounted, probability-weighted)
     └── mart_industry_country_summary.sqlx  # Manufacturer milestone counts and volumes per country
 ```
 

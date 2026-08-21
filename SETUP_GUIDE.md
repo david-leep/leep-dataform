@@ -192,7 +192,7 @@ use it as a panel docked inside VS Code, right next to your files.
    Follow the prompts.
 7. You now have a chat panel **inside the project**, which means Claude Code can see all
    the files. Try asking it something real:
-   > Explain what the file definitions/marts/paint_country_summary.sqlx does, in plain English.
+   > Explain what the file definitions/marts/paint_summary_by_country.sqlx does, in plain English.
 
    It'll read the file and explain. This is the core loop: you ask, it reads/explains/edits,
    you review. **Keep the `leep-dataform` folder open in VS Code every time** so the panel
@@ -217,7 +217,7 @@ git checkout -b yourname-first-change
 The last command creates and switches to your branch. Name it after yourself and what you're doing, e.g. `sarah-add-note`.
 
 **Step 2 — Make a change with Claude Code.** Open the Claude Code panel in VS Code and ask for something tiny and safe, like improving a description:
-> In definitions/marts/paint_country_summary.sqlx, improve the comment at the top to describe what the table contains. Show me the change before saving.
+> In definitions/marts/paint_summary_by_country.sqlx, improve the comment at the top to describe what the table contains. Show me the change before saving.
 
 Read what it proposes. If it looks right, let it make the edit.
 
@@ -236,7 +236,7 @@ Then ask Claude Code to help you check the result in BigQuery. Session 3 covers 
 **Step 5 — Save your change to your branch ("commit").** A commit is a labeled snapshot of your edits.
 ```bash
 git add -A
-git commit -m "Improve description on paint_country_summary"
+git commit -m "Improve description on paint_summary_by_country"
 ```
 The `-m` message should say what you did, in a few words.
 

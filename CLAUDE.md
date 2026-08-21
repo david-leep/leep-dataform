@@ -78,8 +78,7 @@ paint_summary_by_country     health + income DALYs, time discounting, probabilit
 ```
 
 The two mart outputs:
-- `paint_summary_by_country` — DALY impact per country (potential and to-date). Defined in
-  `definitions/marts/paint_country_summary.sqlx`; the file and table names differ.
+- `paint_summary_by_country` — DALY impact per country (potential and to-date).
 - `mart_industry_country_summary` — manufacturer engagement milestones and paint volumes.
 
 Sources are declared in `definitions/sources.js` (native BigQuery tables) and created
@@ -142,7 +141,7 @@ Sheet source) and the full testing ladder.
 
 **Add a column to an existing table:** add it to the staging `SELECT`, then trace it
 downstream through the explicit column lists in `int_paint_program_base` and
-`paint_country_summary.sqlx` so it survives to the mart. Compile, sandbox-run, check.
+`paint_summary_by_country.sqlx` so it survives to the mart. Compile, sandbox-run, check.
 
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
