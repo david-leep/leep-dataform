@@ -184,6 +184,53 @@ there is a backstop underneath it rather than care alone.
 
 ---
 
+## Creating a new dataset
+
+A new dataset is needed when you start a new programme area (`spices`, `water`), not for a new
+table inside an existing one. It is the one change in this repo that is **not** self-contained:
+three things must be set up outside the code, and none of them fail at compile time. If you skip
+them, everything looks fine until someone runs a sandbox and gets a confusing permission error.
+
+Ask David or another maintainer to do all three — the last two need project-level IAM rights.
+
+**1. Create the dataset in the `EU` multi-region.**
+
+```
+bq --project_id=leep-data-system mk --location=EU \
+   --description="<what this programme's data covers>" <dataset>
+```
+
+Location must be `EU`, matching `paint` and `core`. BigQuery cannot join tables across locations,
+and a dataset's location is fixed at creation — getting this wrong means deleting and recreating it.
+
+**2. Grant `dataform-sandbox` read access to the dataset.** BigQuery console → the dataset →
+**Sharing** → **Permissions** → add `dataform-sandbox@leep-data-system.iam.gserviceaccount.com`
+as **BigQuery Data Viewer**.
+
+Without this, sandbox runs cannot read the new dataset's sources and fail with:
+
+```
+Access Denied: Table leep-data-system:<dataset>.<table>: User does not have
+permission to query table ..., or perhaps it does not exist.
+```
+
+**3. Add the dataset's sandbox prefix to the `sandbox-datasets-only` IAM condition.** IAM →
+the `dataform-sandbox` **BigQuery Data Editor** binding → edit its condition → add:
+
+```
+|| resource.name.startsWith("projects/leep-data-system/datasets/<dataset>_")
+```
+
+This condition is what stops sandbox runs writing to production. It is an **allow-list**, so a
+new dataset is excluded by default: without this clause, `dataform run --schema-suffix yourname`
+cannot create `<dataset>_yourname` and fails on write even after step 2 fixes the read.
+
+Note the trailing underscore. `spices_` matches the sandbox `spices_david`, and deliberately does
+not match production `spices` — that asymmetry is the whole safety mechanism, so don't drop it.
+
+Steps 2 and 3 are separate permissions (read a production dataset; write a sandbox one) and you
+need both. Fixing only one moves the error rather than clearing it.
+
 ## Adding a new Google Sheet source
 
 The most common way you'll extend the system (e.g. adding a new M&E or impact source) is adding a Google Sheet. Ask Claude Code to do all three steps — *"Add a new source `stg_water_tracker` from this sheet: <url>"* — and it will follow this pattern. Understanding the three touch-points lets you check its work:
