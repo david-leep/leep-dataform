@@ -14,6 +14,9 @@ config {
       // Milestones are cumulative, so each earlier stage must be at least the later one
       "to_date_dalys_discounted_significant_progress >= to_date_dalys_discounted",
       "to_date_dalys_discounted_taking_steps >= to_date_dalys_discounted_significant_progress",
+      // Potential is floored at the realised reduction, so it can never sit below to-date
+      "potential_dalys_averted >= to_date_dalys_averted",
+      "potential_dalys_discounted >= to_date_dalys_discounted",
       "tier IN ('A+', 'A', 'B', 'C', 'D')"
     ]
   }
