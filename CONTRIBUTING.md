@@ -188,10 +188,11 @@ there is a backstop underneath it rather than care alone.
 
 A new dataset is needed when you start a new programme area (`spices`, `water`), not for a new
 table inside an existing one. It is the one change in this repo that is **not** self-contained:
-three things must be set up outside the code, and none of them fail at compile time. If you skip
-them, everything looks fine until someone runs a sandbox and gets a confusing permission error.
+two things must be set up outside the code, and neither fails at compile time. If you skip them,
+everything looks fine until someone runs a sandbox and gets a confusing permission error.
 
-Ask David or another maintainer to do all three — the last two need project-level IAM rights.
+Step 1 needs BigQuery admin rights and step 2 needs rights on the new dataset, so ask David or
+another maintainer to do both.
 
 **1. Create the dataset in the `EU` multi-region.**
 
@@ -214,22 +215,22 @@ Access Denied: Table leep-data-system:<dataset>.<table>: User does not have
 permission to query table ..., or perhaps it does not exist.
 ```
 
-**3. Add the dataset's sandbox prefix to the `sandbox-datasets-only` IAM condition.** IAM →
-the `dataform-sandbox` **BigQuery Data Editor** binding → edit its condition → add:
+**That's it — there is no third step for sandbox write access.** `dataform-sandbox` holds
+unconditional project-level `roles/bigquery.user`, which includes `bigquery.datasets.create`.
+When you run `dataform run --schema-suffix yourname`, Dataform issues
+`CREATE SCHEMA IF NOT EXISTS <dataset>_yourname`, the service account creates it, and BigQuery
+makes the creator an **OWNER** of that dataset. It can therefore write its own sandbox datasets
+without any grant from you.
 
-```
-|| resource.name.startsWith("projects/leep-data-system/datasets/<dataset>_")
-```
+You may notice a `sandbox-datasets-only` condition on `dataform-sandbox`'s **BigQuery Data Editor**
+binding, allow-listing the `paint_`, `core_`, and `dataform_assertions_` prefixes. **Do not add your
+new dataset to it as a matter of course.** That condition governs datasets the service account does
+*not* own — its purpose is to keep sandbox runs out of production `paint` and `core`. Self-created
+sandbox datasets never rely on it.
 
-This condition is what stops sandbox runs writing to production. It is an **allow-list**, so a
-new dataset is excluded by default: without this clause, `dataform run --schema-suffix yourname`
-cannot create `<dataset>_yourname` and fails on write even after step 2 fixes the read.
-
-Note the trailing underscore. `spices_` matches the sandbox `spices_david`, and deliberately does
-not match production `spices` — that asymmetry is the whole safety mechanism, so don't drop it.
-
-Steps 2 and 3 are separate permissions (read a production dataset; write a sandbox one) and you
-need both. Fixing only one moves the error rather than clearing it.
+The one exception: if someone pre-creates a sandbox dataset by hand, the service account won't own
+it and won't be able to write to it. Let Dataform create sandbox datasets on demand and this can't
+arise.
 
 ## Adding a new Google Sheet source
 
