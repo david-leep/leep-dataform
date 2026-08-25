@@ -1,0 +1,24 @@
+config {
+  type: "table",
+  name: "stg_program_status",
+  schema: "core",
+  description: "Program status per LEEP program geography. One row per country and program, giving engagement status, source of funding, and the lead paint reduction percentage assumed on program success.",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code", "program"],
+    nonNull: ["country_code", "program"],
+    rowConditions: ["lead_paint_reduction_percentage BETWEEN 0 AND 1"]
+  }
+}
+
+SELECT
+  country_name,
+  country_code,
+  program,
+  status,
+  source_of_funding,
+  lead_paint_reduction_percentage
+FROM ${ref("program_status")}
+WHERE country_code IS NOT NULL
