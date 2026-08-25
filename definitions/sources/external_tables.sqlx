@@ -46,13 +46,6 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.spices.spices_assumptions`
-OPTIONS (
-  format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1v-kEGZZ_wsN92PyUoF2qskjzFG8RFP6Ne-F2nzSlo60/edit'],
-  skip_leading_rows = 1
-);
-
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.program_status`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
