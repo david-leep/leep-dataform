@@ -39,3 +39,9 @@ declare({
   name: "spices_assumptions",
   description: "Turmeric adulteration assumptions for LEEP's spices programme. One row per programme geography (currently Indian states), giving the share of each turmeric channel estimated to be adulterated with lead chromate. External table backed by a Google Sheet."
 });
+
+declare({
+  schema: "core",
+  name: "program_status",
+  description: "Program status and counterfactual assumptions per LEEP program geography. One row per country and program, giving engagement status, source of funding, and the lead paint reduction percentage assumed on program success. External table backed by a Google Sheet."
+});
