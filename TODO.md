@@ -32,9 +32,3 @@ Paint is the only source currently modelled end to end, so it is the template: e
 
 - More accurate discount rates for market shift years beyond 2029
 - Cross-source comparison dashboards (expected DALY impact per source, number of programs, number of programs by program status, etc.)
-
-## Open questions
-
-- Which Evidence Tracker sheet or tab is authoritative for each source, and who owns updating it.
-- Whether eyeliner and spice programs use the same tier definitions and discount rates as paint.
-- Whether the counterfactual restructure lands before or after the eyeliner build, since the eyeliner chain should copy the final shape, not the current one.
