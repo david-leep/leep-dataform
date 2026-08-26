@@ -18,15 +18,15 @@ Paint is the only source currently modelled end to end, so it is the template: e
 |---|---|---|---|
 | Update with assumptions from evidence tracker | Agree the eyeliner parameter set (BLL impact per unit exposure, use prevalence, DALY and IQ coefficients, program success probability), create an eyeliner assumptions sheet from the Evidence Tracker, add the external table plus source declaration, and build `stg_eyeliner_assumptions` with assertions on ranges and non-nulls. | Emily and Shreya | Q4 |
 | Reproduce components of IPP sheet for eyeliners | Rebuild the Impact per Program calculation in Dataform, mirroring the paint chain: external table DDL in `definitions/sources/external_tables.sqlx`, declarations in `definitions/sources.js`, staging tables for assumptions, program status, and any market or usage data, an `int_eyeliner_program_base` giving children with averted exposure, and a `mart` equivalent to `paint_summary_by_country` with health and income DALYs, time discounting, probability weighting, and tiering. Reuse `int_country_profile` for births and urban rate rather than duplicating it. | Shreya | Q4 |
-| Build eyeliner dashboards | Connect the eyeliner mart to Looker Studio and build the country impact views, following the existing paint dashboards. Agree the headline metrics first (potential and to-date DALYs, tier, country coverage) and check whether eyeliners belong on the existing cross-program dashboard or a separate one. | TBD | Q4 |
+| Build eyeliner dashboards | Connect the eyeliner mart to Looker Studio and build the country impact views, following the existing paint dashboards. Agree the headline metrics first (potential and to-date DALYs, tier, country coverage). | Shreya | Q4 |
 
 ## Spices (Q4)
 
 | Task | What the work involves | Who | Quarter |
 |---|---|---|---|
-| Update with assumptions from evidence tracker | Same pattern as eyeliners, with spice-specific parameters (contaminated spice share, consumption per capita, BLL impact). Discuss exactly which assumptions should be | Emily and David/Akanksha | Q4 |
+| Update with assumptions from evidence tracker | Same pattern as eyeliners, with spice-specific parameters (contaminated spice share, consumption per capita, BLL impact). Discuss exactly which assumptions should be included. | Emily and David/Akanksha | Q4 |
 | Reproduce components of IPP sheet for spices | Build the spice IPP chain end to end: external tables and declarations, staging for assumptions and program status, an `int_spice_program_base`, and a country-level DALY mart matching the paint mart's structure and assertions. Decide whether exposure is modelled per household or per child, since that choice drives the base table's grain. | Emily and David/Akanksha | Q4 |
-| Build spice dashboards | Connect the spice mart to Looker Studio and build the country impact views, matching the eyeliner and paint dashboards so the three sources read the same way. | TBD | Q4 |
+| Build spice dashboards | Connect the spice mart to Looker Studio and build the country impact views, matching the eyeliner and paint dashboards so the three sources read the same way. | Emily/Akanksha | Q4 |
 
 ## Cross-cutting (Q3 and Q4)
 
