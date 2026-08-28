@@ -146,6 +146,22 @@ Sheet source) and the full testing ladder.
 downstream through the explicit column lists in `int_paint_program_base` and
 `paint_summary_by_country.sqlx` so it survives to the mart. Compile, sandbox-run, check.
 
+**Create a new dataset (only for a new programme area):** two things must happen outside the code,
+neither of which fails at compile time — so raise both whenever a user adds a dataset.
+(1) create it with `--location=EU` (must match `paint`/`core`; fixed at creation, and BigQuery
+cannot join across locations); (2) grant `dataform-sandbox` **BigQuery Data Viewer** on the new
+dataset, or sandbox runs cannot read its sources and fail with `Access Denied ... or perhaps it
+does not exist`. `bq mk` does not copy the access list from `paint`/`core`, so this is always
+missing on a fresh dataset. Both need elevated rights — tell the user to ask David rather than
+attempting them. Production is unaffected (`dataform-executor` is unconditional), so the pipeline
+can look healthy for days before anyone runs a sandbox and hits it.
+
+Sandbox *write* access needs no setup: `dataform-sandbox` has unconditional project-level
+`roles/bigquery.user`, so it creates `<dataset>_<name>` itself and becomes its OWNER. Do not add
+new datasets to the `sandbox-datasets-only` IAM condition — that condition only governs datasets
+the service account does not own, and exists to keep sandbox runs out of production.
+See CONTRIBUTING.md § Creating a new dataset.
+
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
 (3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns **and

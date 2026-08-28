@@ -184,6 +184,54 @@ there is a backstop underneath it rather than care alone.
 
 ---
 
+## Creating a new dataset
+
+A new dataset is needed when you start a new programme area (`spices`, `water`), not for a new
+table inside an existing one. It is the one change in this repo that is **not** self-contained:
+two things must be set up outside the code, and neither fails at compile time. If you skip them,
+everything looks fine until someone runs a sandbox and gets a confusing permission error.
+
+Step 1 needs BigQuery admin rights and step 2 needs rights on the new dataset, so ask David or
+another maintainer to do both.
+
+**1. Create the dataset in the `EU` multi-region.**
+
+```
+bq --project_id=leep-data-system mk --location=EU \
+   --description="<what this programme's data covers>" <dataset>
+```
+
+Location must be `EU`, matching `paint` and `core`. BigQuery cannot join tables across locations,
+and a dataset's location is fixed at creation — getting this wrong means deleting and recreating it.
+
+**2. Grant `dataform-sandbox` read access to the dataset.** BigQuery console → the dataset →
+**Sharing** → **Permissions** → add `dataform-sandbox@leep-data-system.iam.gserviceaccount.com`
+as **BigQuery Data Viewer**.
+
+Without this, sandbox runs cannot read the new dataset's sources and fail with:
+
+```
+Access Denied: Table leep-data-system:<dataset>.<table>: User does not have
+permission to query table ..., or perhaps it does not exist.
+```
+
+**That's it — there is no third step for sandbox write access.** `dataform-sandbox` holds
+unconditional project-level `roles/bigquery.user`, which includes `bigquery.datasets.create`.
+When you run `dataform run --schema-suffix yourname`, Dataform issues
+`CREATE SCHEMA IF NOT EXISTS <dataset>_yourname`, the service account creates it, and BigQuery
+makes the creator an **OWNER** of that dataset. It can therefore write its own sandbox datasets
+without any grant from you.
+
+You may notice a `sandbox-datasets-only` condition on `dataform-sandbox`'s **BigQuery Data Editor**
+binding, allow-listing the `paint_`, `core_`, and `dataform_assertions_` prefixes. **Do not add your
+new dataset to it as a matter of course.** That condition governs datasets the service account does
+*not* own — its purpose is to keep sandbox runs out of production `paint` and `core`. Self-created
+sandbox datasets never rely on it.
+
+The one exception: if someone pre-creates a sandbox dataset by hand, the service account won't own
+it and won't be able to write to it. Let Dataform create sandbox datasets on demand and this can't
+arise.
+
 ## Adding a new Google Sheet source
 
 The most common way you'll extend the system (e.g. adding a new M&E or impact source) is adding a Google Sheet. Ask Claude Code to do all three steps — *"Add a new source `stg_water_tracker` from this sheet: <url>"* — and it will follow this pattern. Understanding the three touch-points lets you check its work:
