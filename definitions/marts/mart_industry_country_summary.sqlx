@@ -1,7 +1,7 @@
 config {
   type: "table",
   name: "mart_industry_country_summary",
-  description: "Summary statistics on paint manufacturers per country. Counts manufacturers at each engagement milestone and sums their high-Pb and total paint volumes. Excludes placeholder manufacturer IDs ending in 001, 002, or 003.",
+  description: "Summary statistics on paint manufacturers per country. Counts manufacturers at each engagement milestone and sums their high-Pb and total paint volumes. Excludes placeholder manufacturer IDs ending in 001 or 002.",
   tags: ["marts"],
   assertions: {
     uniqueKey: ["country_code"],
@@ -22,7 +22,9 @@ WITH filtered AS (
     date_of_repeat_paint_study_showing_lead_free
   FROM ${ref("int_industry_full")}
   WHERE partition_date = DATE_TRUNC(CURRENT_DATE(), MONTH)
-    AND NOT REGEXP_CONTAINS(unique_id, r'00[123]$')
+    -- Only 001 ("Remaining Unidentified") and 002 ("Unidentified SMEs") are reserved placeholder
+    -- slots in every country; 003 is a real manufacturer wherever a country's list is short.
+    AND NOT REGEXP_CONTAINS(unique_id, r'00[12]$')
 ),
 
 aggregated AS (
