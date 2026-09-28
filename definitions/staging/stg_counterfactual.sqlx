@@ -6,12 +6,25 @@ config {
   dependencies: ["external_tables"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code"]
+    nonNull: [
+      "country_code",
+      "market_shift_year",
+      "market_shift_counterfactual_year",
+      "additional_years_before_market_shift_without_leep"
+    ],
+    rowConditions: [
+      // A negative value would put the counterfactual shift before the actual one
+      "additional_years_before_market_shift_without_leep >= 0"
+    ]
   }
 }
 
 SELECT
-  *
+  country_code,
+  country_name,
+  market_shift_year,
+  market_shift_counterfactual_year,
+  additional_years_before_market_shift_without_leep
 FROM
   ${ref("counterfactual")}
 WHERE country_code IS NOT NULL
