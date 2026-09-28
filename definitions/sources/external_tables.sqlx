@@ -13,7 +13,8 @@ config {
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.counterfactual`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1xMp67BHAGJWqwOIQslr_V7yuLvlpEl9ISGY9zbDo_Qw/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/1qeRyj94QfYr4YhkuRXFbhaMTbjjbsxEmLKSd3GKdlbo/edit'],
+  sheet_range = 'data_system_market_shift_and_cf_input',
   skip_leading_rows = 1
 );
 
