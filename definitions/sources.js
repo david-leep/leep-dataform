@@ -35,6 +35,18 @@ declare({
 });
 
 declare({
+  schema: "paint",
+  name: "market_share_overrides_selected",
+  description: "Baseline lead paint market share overrides per country, taking priority over values calculated from industry trackers. External table backed by the market_share_overrides_tab of a Google Sheet."
+});
+
+declare({
+  schema: "paint",
+  name: "tier_overrides_selected",
+  description: "Tier overrides per country, replacing the tier derived from discounted DALYs. External table backed by the tier_overrides_tab of a Google Sheet."
+});
+
+declare({
   schema: "core",
   name: "program_status",
   description: "Program status and counterfactual assumptions per LEEP program geography. One row per country and program, giving engagement status, source of funding, and the lead paint reduction percentage assumed on program success. External table backed by a Google Sheet."

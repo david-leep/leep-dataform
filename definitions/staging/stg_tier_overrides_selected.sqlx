@@ -1,0 +1,19 @@
+config {
+  type: "table",
+  name: "stg_tier_overrides_selected",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "tier_assumption"],
+    rowConditions: ["tier_assumption IN ('A+', 'A', 'B', 'C', 'D')"]
+  }
+}
+
+SELECT
+  country_name,
+  country_code,
+  tier_assumption
+FROM ${ref("tier_overrides_selected")}
+WHERE country_code IS NOT NULL
