@@ -46,6 +46,22 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.market_share_overrides_selected`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/14UqfeMlo1BAUOBFXwVJL6YjGvH91qlft-kVXTa6xQxI/edit'],
+  sheet_range = 'market_share_overrides_tab',
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.tier_overrides_selected`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/14UqfeMlo1BAUOBFXwVJL6YjGvH91qlft-kVXTa6xQxI/edit'],
+  sheet_range = 'tier_overrides_tab',
+  skip_leading_rows = 1
+);
+
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.program_status`
 OPTIONS (
   format = 'GOOGLE_SHEETS',

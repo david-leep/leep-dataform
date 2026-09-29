@@ -1,0 +1,19 @@
+config {
+  type: "table",
+  name: "stg_market_share_overrides_selected",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "market_share_assumption"],
+    rowConditions: ["market_share_assumption BETWEEN 0 AND 1"]
+  }
+}
+
+SELECT
+  country_name,
+  country_code,
+  market_share_assumption
+FROM ${ref("market_share_overrides_selected")}
+WHERE country_code IS NOT NULL

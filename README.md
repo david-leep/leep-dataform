@@ -34,7 +34,9 @@ definitions/
 │   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target, program metadata)
 │   ├── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALY rates, etc.)
 │   ├── stg_discount_rates.sqlx       # Health and income DALY discount rates by market_shift_year
-│   └── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
+│   ├── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
+│   ├── stg_market_share_overrides_selected.sqlx  # Baseline market share overrides that take priority over industry tracker values
+│   └── stg_tier_overrides_selected.sqlx  # Tier overrides that replace the DALY-derived tier
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
@@ -164,6 +166,8 @@ Split across two datasets in `leep-data-system`:
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
 | `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
 | `market_share_overrides` | `paint` | Manual baseline market share estimates for countries without industry tracker data |
+| `market_share_overrides_selected` | `paint` | Baseline market share overrides per country ("market_share_overrides_tab"), taking priority over industry tracker values |
+| `tier_overrides_selected` | `paint` | Tier overrides per country ("tier_overrides_tab"), replacing the DALY-derived tier |
 
 ## Contributing
 
