@@ -51,7 +51,7 @@ Read the answer. If you can't yet say what the file does in a sentence, keep ask
 
 > Add a `region` column from `stg_country` through to the mart. Show me each file you'll change and why before you edit.
 
-Ask it to show its plan first, read it, then let it edit. It follows our conventions (join on `country_code`, explicit column lists, no `SELECT *` except `stg_counterfactual`) because they're in `CLAUDE.md`.
+Ask it to show its plan first, read it, then let it edit. It follows our conventions (join on `country_code`, explicit column lists, no `SELECT *`) because they're in `CLAUDE.md`.
 
 **4. Compile — after every edit.**
 
@@ -304,7 +304,7 @@ Only sheet-backed sources need this. Staging tables over native BigQuery tables
 3. To find dependents quickly: `grep -r "ref(\"stg_<table_name>\")"` — or just ask Claude Code the same thing.
 
 Common pattern — adding a column from `stg_counterfactual` all the way to the mart:
-- Add to `stg_counterfactual.sqlx` (or confirm it comes through via `SELECT *`)
+- Add to the `SELECT` list in `stg_counterfactual.sqlx`
 - Add to the `joined` CTE in `int_paint_program_base.sqlx` (explicit list)
 - Add to the final `SELECT` in `int_paint_program_base.sqlx`
 - Add to the final `SELECT` in `paint_summary_by_country.sqlx` (intermediate CTEs use `SELECT *` so they pass through automatically)
@@ -429,6 +429,6 @@ You don't need to memorise these — Claude Code already knows them from `CLAUDE
 - **Joins**: always join on `country_code`, not country name — World Bank names differ from common usage for many countries (DRC, Egypt, Cote D'Ivoire, Türkiye, etc.)
 - **Column names**: snake_case, descriptive over abbreviated
 - **CTEs over subqueries**: use named CTEs for any logic more than one step deep
-- **No `SELECT *` in staging/intermediate**: list columns explicitly to catch schema drift early. Exception: `stg_counterfactual` uses `SELECT *` intentionally so new columns added to the sheet flow through without a code change.
+- **No `SELECT *` in staging/intermediate**: list columns explicitly to catch schema drift early.
 - **One purpose per file**: if a file is doing two unrelated things, split it
 - **Comments**: only where the logic isn't self-evident — business rules, non-obvious branch conditions, workarounds

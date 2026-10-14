@@ -31,7 +31,7 @@ definitions/
 │   ├── stg_country.sqlx              # LMIC country list filtered from country_metadata
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
 │   ├── stg_industry_full.sqlx        # Dynamic column cleaning for industry_full_raw (EXECUTE IMMEDIATE)
-│   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target, program metadata)
+│   ├── stg_counterfactual.sqlx       # Market shift years per country, with and without LEEP
 │   ├── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALY rates, etc.)
 │   ├── stg_discount_rates.sqlx       # Health and income DALY discount rates by market_shift_year
 │   └── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
@@ -160,7 +160,7 @@ Split across two datasets in `leep-data-system`:
 | `country_metadata` | `core` | Country classifications — income group, country code |
 | `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
 | `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Tracker Data" tab) — column names auto-detected and cleaned at runtime |
-| `counterfactual` | `paint` | Counterfactual scenario assumptions per country — market shift timing, reduction target, program metadata (program, status, source_of_funding) |
+| `counterfactual` | `paint` | Market shift years per country with and without LEEP, updated quarterly from PM M&E docs (tab `data_system_market_shift_and_cf_input`) |
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
 | `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
 | `market_share_overrides` | `paint` | Manual baseline market share estimates for countries without industry tracker data |
