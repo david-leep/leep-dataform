@@ -30,8 +30,20 @@ declare({
 
 declare({
   schema: "paint",
+  name: "market_share_overrides_archive",
+  description: "Archived manual baseline market share estimates for countries without industry tracker data. Being replaced by market_share_overrides."
+});
+
+declare({
+  schema: "paint",
   name: "market_share_overrides",
-  description: "Manual baseline market share estimates for countries without industry tracker data."
+  description: "Baseline lead paint market share overrides per country, taking priority over values calculated from industry trackers. External table backed by the market_share_overrides_tab of a Google Sheet."
+});
+
+declare({
+  schema: "paint",
+  name: "tier_overrides_selected",
+  description: "Tier overrides per country, replacing the tier derived from discounted DALYs. External table backed by the tier_overrides_tab of a Google Sheet."
 });
 
 declare({

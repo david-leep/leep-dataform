@@ -31,7 +31,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
      ps   AS (SELECT * FROM ${ref("stg_program_status")} WHERE program = 'Paint'),
      pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
      dr   AS (SELECT * FROM ${ref("stg_discount_rates")}),
-     mso  AS (SELECT * FROM ${ref("stg_market_share_overrides")}),
+     mso  AS (SELECT * FROM ${ref("stg_market_share_overrides_archive")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (
