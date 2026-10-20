@@ -106,8 +106,7 @@ so the DDL is ordered ahead of it — see the recipe at the end of this file.
 - **Join on `country_code`, never on country name.** Names are inconsistent across sources.
 - **snake_case** for all column names. Clear descriptive names over abbreviations.
 - **Explicit column lists**, never `SELECT *`, in staging and intermediate tables — this
-  prevents silent schema drift. The one intentional exception is `stg_counterfactual`;
-  leave it as is.
+  prevents silent schema drift.
 - **CTEs over nested subqueries.** Keep SQL readable and top-to-bottom.
 - **One transformation per file.** Each `.sqlx` has a single clear purpose.
 - **Add assertions** to the `config` block of new/changed staging, intermediate, and mart

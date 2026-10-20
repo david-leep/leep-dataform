@@ -13,7 +13,7 @@ declare({
 declare({
   schema: "paint",
   name: "counterfactual",
-  description: "Country-level program metadata for LEEP's paint programme. One row per country, including engagement status, source of funding, and the counterfactual scenario assumed in the impact model."
+  description: "Market shift assumptions for LEEP's paint program. One row per country, giving the market shift year with and without LEEP and the gap between them, updated quarterly from PM M&E docs. External table backed by a Google Sheet."
 });
 
 declare({

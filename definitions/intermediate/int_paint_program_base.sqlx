@@ -24,8 +24,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          SELECT MAX(year_month) FROM ${ref("int_lead_paint_market_share")}
        )
      ),
-     -- Counterfactual sheet now supplies only the market shift years; program metadata
-     -- and the reduction assumption come from stg_program_status.
+     -- Counterfactual sheet supplies the market shift years, updated quarterly from PM M&E docs;
+     -- program metadata and the reduction assumption come from stg_program_status.
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
      -- stg_program_status covers every LEEP program, so restrict it to paint here.
      ps   AS (SELECT * FROM ${ref("stg_program_status")} WHERE program = 'Paint'),
@@ -62,7 +62,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          ps.source_of_funding,
          cf.market_shift_year,
          cf.additional_years_before_market_shift_without_leep,
-         cf.market_shift_year + cf.additional_years_before_market_shift_without_leep            AS market_shift_counterfactual_year,
+         cf.market_shift_counterfactual_year,
          ps.lead_paint_reduction_percentage,
          pa.paint_bll_impact_ug_per_dl,
          pa.health_dalys_per_bll,
