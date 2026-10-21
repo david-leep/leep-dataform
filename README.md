@@ -34,7 +34,9 @@ definitions/
 │   ├── stg_counterfactual.sqlx       # Market shift years per country, with and without LEEP
 │   ├── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALY rates, etc.)
 │   ├── stg_discount_rates.sqlx       # Health and income DALY discount rates by market_shift_year
-│   └── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
+│   ├── stg_market_share_overrides_archive.sqlx  # Archived manual baseline market share estimates for countries without industry tracker data
+│   ├── stg_market_share_overrides.sqlx  # Baseline market share overrides that take priority over industry tracker values
+│   └── stg_tier_overrides_selected.sqlx  # Tier overrides that replace the DALY-derived tier
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
@@ -54,7 +56,7 @@ definitions/
  counterfactual           ──┤         country_metadata ──┤
  assumptions              ──┤                            │
  discount_rates           ──┤                            │
- market_share_overrides   ──┘                            │
+ market_share_overrides_archive ──┘                      │
         │                                                │
         ▼                                                ▼
  sources/external_tables.sqlx        sources.js
@@ -68,7 +70,7 @@ definitions/
               │  stg_counterfactual                │
               │  stg_assumptions                   │
               │  stg_discount_rates                │
-              │  stg_market_share_overrides        │
+              │  stg_market_share_overrides_archive│
               │  stg_country              ───┐     │
               │  stg_indicators_long      ───┘     │
               └────────────────────────────────────┘
@@ -102,7 +104,7 @@ definitions/
  └──────────────────────────────────┘    stg_counterfactual
                  │                       stg_assumptions
                  ▼  MARTS               stg_discount_rates
- ┌────────────────────────────┐          stg_market_share_overrides
+ ┌────────────────────────────┐          stg_market_share_overrides_archive
  │  paint_summary_by_country  │
  │  (DALYs averted,           │
  │   discounted,              │
@@ -148,7 +150,7 @@ This Dataform pipeline creates program-level estimates of impact for LEEP's pain
 4. **Exposure base** (`int_paint_program_base`) — uses the latest month's baseline and current market share from `int_lead_paint_market_share` to compute children born in lead-painted homes, then calculates how many children's exposure is averted under two scenarios:
    - **Potential**: assumes the full `lead_paint_reduction_percentage` is achieved
    - **To-date**: uses the actual observed reduction (`baseline − current` market share)
-   - For countries without industry tracker data, `baseline_lead_paint_market_share` falls back to `stg_market_share_overrides`; these countries have no to-date impact (current market share is set to NULL). All joins are on `country_code` to avoid country name mismatches.
+   - For countries without industry tracker data, `baseline_lead_paint_market_share` falls back to `stg_market_share_overrides_archive`; these countries have no to-date impact (current market share is set to NULL). All joins are on `country_code` to avoid country name mismatches.
 5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting (`stg_discount_rates`) and probability weighting. Includes `program`, `status`, `source_of_funding` columns from the counterfactual and a `tier` classification (A–D) based on `potential_dalys_discounted`.
 
 ## Data sources (raw BigQuery tables)
@@ -163,7 +165,9 @@ Split across two datasets in `leep-data-system`:
 | `counterfactual` | `paint` | Market shift years per country with and without LEEP, updated quarterly from PM M&E docs (tab `data_system_market_shift_and_cf_input`) |
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
 | `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
-| `market_share_overrides` | `paint` | Manual baseline market share estimates for countries without industry tracker data |
+| `market_share_overrides_archive` | `paint` | Archived manual baseline market share estimates for countries without industry tracker data |
+| `market_share_overrides` | `paint` | Baseline market share overrides per country ("market_share_overrides_tab"), taking priority over industry tracker values |
+| `tier_overrides_selected` | `paint` | Tier overrides per country ("tier_overrides_tab"), replacing the DALY-derived tier |
 
 ## Contributing
 
