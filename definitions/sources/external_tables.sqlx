@@ -55,7 +55,12 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.tier_overrides_selected`
+-- Explicit schema: all columns are text, so auto-detect can't find the header row.
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.tier_overrides_selected` (
+  country_name STRING,
+  country_code STRING,
+  tier_assumption STRING
+)
 OPTIONS (
   format = 'GOOGLE_SHEETS',
   uris = ['https://docs.google.com/spreadsheets/d/14UqfeMlo1BAUOBFXwVJL6YjGvH91qlft-kVXTa6xQxI/edit'],
