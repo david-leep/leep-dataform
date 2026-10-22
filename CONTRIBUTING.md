@@ -338,7 +338,7 @@ config {
 - For the paint pipeline, the main calculation chain is:
 
 ```
-stg_counterfactual + stg_market_share_overrides_archive
+stg_counterfactual + stg_market_share_overrides + stg_tier_overrides_selected
         ↓
 int_lead_paint_market_share  (market share per country per month)
         ↓

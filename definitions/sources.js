@@ -30,12 +30,6 @@ declare({
 
 declare({
   schema: "paint",
-  name: "market_share_overrides_archive",
-  description: "Archived manual baseline market share estimates for countries without industry tracker data. Being replaced by market_share_overrides."
-});
-
-declare({
-  schema: "paint",
   name: "market_share_overrides",
   description: "Baseline lead paint market share overrides per country, taking priority over values calculated from industry trackers. External table backed by the market_share_overrides_tab of a Google Sheet."
 });
