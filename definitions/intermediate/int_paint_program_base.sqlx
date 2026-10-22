@@ -5,7 +5,7 @@ config {
   tags: ["intermediate"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code"],
+    nonNull: ["country_code", "is_market_share_overridden"],
     rowConditions: [
       // Countries with no active program legitimately have no discount rate (market_shift_year
       // is null). But if a program exists, its market_shift_year must be covered by
@@ -31,7 +31,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
      ps   AS (SELECT * FROM ${ref("stg_program_status")} WHERE program = 'Paint'),
      pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
      dr   AS (SELECT * FROM ${ref("stg_discount_rates")}),
-     mso  AS (SELECT * FROM ${ref("stg_market_share_overrides_archive")}),
+     mso  AS (SELECT * FROM ${ref("stg_market_share_overrides")}),
+     tov  AS (SELECT * FROM ${ref("stg_tier_overrides_selected")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (
@@ -41,21 +42,28 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          cp.income_group,
          cp.annual_number_of_births,
          cp.urban_rate,
-         -- Use override when no industry tracker data exists; override countries have no to-date impact
-         COALESCE(latest_lpm.baseline_lead_paint_market_share, mso.market_share_assumption)    AS baseline_lead_paint_market_share,
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share
-              ELSE NULL
+         -- An override takes priority over the tracker baseline wherever the sheet has a value
+         COALESCE(mso.market_share_assumption, latest_lpm.baseline_lead_paint_market_share)    AS baseline_lead_paint_market_share,
+         mso.market_share_assumption IS NOT NULL                                                AS is_market_share_overridden,
+         -- Overridden countries keep the tracker's proportional reduction, rescaled to the override
+         -- baseline; NULL (no to-date impact) where there is no tracker baseline to scale from
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share
          END                                                                                    AS current_lead_paint_market_share,
          -- Pipeline scenarios: manufacturers at an earlier milestone credited as reformulated
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share_taking_steps
-              ELSE NULL
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share_taking_steps, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share_taking_steps
          END                                                                                    AS current_lead_paint_market_share_taking_steps,
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share_significant_progress
-              ELSE NULL
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share_significant_progress, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share_significant_progress
          END                                                                                    AS current_lead_paint_market_share_significant_progress,
+         tov.tier_assumption                                                                    AS tier_override,
          latest_lpm.year_month                                                                  AS market_share_year_month,
          ps.program,
          ps.status,
@@ -84,6 +92,7 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        LEFT JOIN ps                    ON cp.country_code = ps.country_code
        LEFT JOIN dr                    ON dr.market_shift_year = cf.market_shift_year
        LEFT JOIN mso                   ON cp.country_code = mso.country_code
+       LEFT JOIN tov                   ON cp.country_code = tov.country_code
        CROSS JOIN pa
      ),
 
@@ -175,10 +184,12 @@ SELECT
   annual_number_of_births,
   urban_rate,
   baseline_lead_paint_market_share,
+  is_market_share_overridden,
   current_lead_paint_market_share,
   current_lead_paint_market_share_taking_steps,
   current_lead_paint_market_share_significant_progress,
   market_share_year_month,
+  tier_override,
   market_shift_year,
   market_shift_counterfactual_year,
   lead_paint_reduction_percentage,

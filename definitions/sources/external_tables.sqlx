@@ -40,13 +40,6 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
-CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.market_share_overrides_archive`
-OPTIONS (
-  format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/16IPLzyqkZA7qHMtc7bm8oeEwhXNBuWbV2YEm8Z6TAuE/edit'],
-  skip_leading_rows = 1
-);
-
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.market_share_overrides`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
