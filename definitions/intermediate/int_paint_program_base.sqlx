@@ -77,7 +77,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          pa.percentage_rural_homes_painted,
          pa.colored_paint_market_share,
          pa.percentage_newly_painted_homes_per_year,
-         pa.percentage_repainted_homes_per_year
+         pa.percentage_repainted_homes_per_year,
+         pa.adjustment_causal
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_code = cf.country_code
@@ -134,7 +135,8 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        FROM effective_reduction
      ),
 
-     -- Step 4: total children with averted exposure over the counterfactual window
+     -- Step 4: total children with averted exposure over the counterfactual window,
+     -- scaled by adjustment_causal to match the causal model
      averted_exposure AS (
        SELECT
          *,
@@ -143,23 +145,27 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * effective_reduction_percentage
+           * adjustment_causal
            AS children_averted_potential,
          -- V_to_date: using actual observed reduction
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date,
          -- V_to_date under each pipeline scenario
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction_taking_steps, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date_taking_steps,
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction_significant_progress, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date_significant_progress
        FROM lead_exposure
      )
@@ -202,6 +208,7 @@ SELECT
   health_dalys_discount_rate,
   income_dalys_discount_rate,
   program_success_probability,
+  adjustment_causal,
   children_averted_potential * paint_bll_impact_ug_per_dl AS cbll_averted_potential,
   children_averted_to_date   * paint_bll_impact_ug_per_dl AS cbll_averted_to_date,
   children_averted_to_date_taking_steps        * paint_bll_impact_ug_per_dl AS cbll_averted_to_date_taking_steps,
