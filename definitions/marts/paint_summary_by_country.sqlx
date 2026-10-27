@@ -5,7 +5,7 @@ config {
   tags: ["marts"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code", "country_name", "tier"],
+    nonNull: ["country_code", "country_name", "tier", "is_tier_overridden", "is_market_share_overridden"],
     rowConditions: [
       "potential_dalys_discounted >= 0",
       "to_date_dalys_discounted >= 0",
@@ -17,7 +17,8 @@ config {
       // Potential is floored at the realised reduction, so it can never sit below to-date
       "potential_dalys_averted >= to_date_dalys_averted",
       "potential_dalys_discounted >= to_date_dalys_discounted",
-      "tier IN ('A+', 'A', 'B', 'C', 'D')"
+      "tier IN ('A+', 'A', 'B', 'C', 'D')",
+      "calculated_tier IN ('A+', 'A', 'B', 'C', 'D')"
     ]
   }
 }
@@ -96,9 +97,23 @@ daly_probability_weighted AS (
     potential_dalys_discounted * program_success_probability AS potential_dalys_discounted_probability,
     to_date_dalys_discounted * program_success_probability   AS to_date_dalys_discounted_probability
   FROM daly_totals
+),
+
+-- Step 2c: tier from time-and-probability discounted DALYs (potential scenario), before any override
+tiered AS (
+  SELECT
+    *,
+    CASE
+      WHEN potential_dalys_discounted_probability > 100000 THEN 'A+'
+      WHEN potential_dalys_discounted_probability >= 50000 THEN 'A'
+      WHEN potential_dalys_discounted_probability >= 20000 THEN 'B'
+      WHEN potential_dalys_discounted_probability >= 5000  THEN 'C'
+      ELSE 'D'
+    END AS calculated_tier
+  FROM daly_probability_weighted
 )
 
--- Step 3: assign tiers off time-and-probability discounted DALYs, and select final columns
+-- Step 3: apply tier overrides, add asterisked display values for overrides, and select final columns
 SELECT
   country_name,
   country_code,
@@ -109,6 +124,11 @@ SELECT
   annual_number_of_births,
   urban_rate,
   baseline_lead_paint_market_share,
+  is_market_share_overridden,
+  -- Display value for dashboards: an asterisk marks a manual override
+  IF(baseline_lead_paint_market_share IS NULL, NULL,
+     CONCAT(FORMAT('%.1f%%', baseline_lead_paint_market_share * 100),
+            IF(is_market_share_overridden, '*', '')))       AS baseline_lead_paint_market_share_display,
   current_lead_paint_market_share,
   market_share_year_month,
   market_shift_year,
@@ -121,14 +141,11 @@ SELECT
   cbll_averted_potential,
   cbll_averted_to_date,
 
-  -- Tiers based on time-and-probability discounted DALYs (potential scenario)
-  CASE
-    WHEN potential_dalys_discounted_probability > 100000 THEN 'A+'
-    WHEN potential_dalys_discounted_probability >= 50000 THEN 'A'
-    WHEN potential_dalys_discounted_probability >= 20000 THEN 'B'
-    WHEN potential_dalys_discounted_probability >= 5000  THEN 'C'
-    ELSE 'D'
-  END AS tier,
+  COALESCE(tier_override, calculated_tier)                  AS tier,
+  calculated_tier,
+  tier_override IS NOT NULL                                 AS is_tier_overridden,
+  CONCAT(COALESCE(tier_override, calculated_tier),
+         IF(tier_override IS NOT NULL, '*', ''))            AS tier_display,
 
   -- ── POTENTIAL IMPACT ───────────────────────────────────────────────────────
   potential_health_dalys                                    AS potential_health_dalys_averted,
@@ -151,4 +168,4 @@ SELECT
   to_date_dalys_discounted_taking_steps,
   to_date_dalys_discounted_significant_progress
 
-FROM daly_probability_weighted
+FROM tiered
