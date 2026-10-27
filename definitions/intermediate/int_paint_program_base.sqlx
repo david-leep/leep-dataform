@@ -17,7 +17,7 @@ config {
 
 WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
 
-     -- Get the latest month-year's market share per country
+     -- Latest month's market share per country
      latest_lpm AS (
        SELECT * FROM ${ref("int_lead_paint_market_share")}
        WHERE year_month = (
