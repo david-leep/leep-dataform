@@ -96,8 +96,9 @@ so the DDL is ordered ahead of it — see the recipe at the end of this file.
   `paint` (production). Assertions dataset: `dataform_assertions`.
 - External tables are backed by **Google Sheets**. The data is live, but
   `INFORMATION_SCHEMA` reflects the schema from when `CREATE EXTERNAL TABLE` last ran —
-  so if a sheet column is renamed, the external table won't see it until the DDL in
-  `external_tables.sqlx` is re-run. Warn the user about this if they change a source sheet.
+  so if a sheet column is renamed or added, the external table won't see it until the DDL in
+  `external_tables.sqlx` is re-run. The production job re-runs it on every merge, but a
+  sandbox run can't see the change until then. Warn the user about this if they change a source sheet.
 
 ---
 
