@@ -212,9 +212,8 @@ Sheets are read by the service account, never by your own Google account, so sha
 yourself is not enough. This is the step people forget: the table gets created fine and then
 the pipeline fails later with a Drive error.
 
-**If a sheet's columns change** and you need the external table to see them, edit
-`external_tables.sqlx` — even trivially — and merge. The DDL runs when that file changes, so
-touching it is what triggers the refresh.
+**If a sheet's columns change**, no extra step is needed: the production job re-runs the DDL
+on every merge, so the external table picks up the new columns.
 
 **One ordering quirk, with two consequences.** Sources are *declared*, not built. A declaration
 is an inert graph node: it names a table, but it neither creates one nor depends on whatever does.
@@ -241,9 +240,7 @@ disabled: dataform.projectConfig.vars.createExternalTables !== "true"
 
 `createExternalTables` defaults to `"false"` in `workflow_settings.yaml`, so the action is
 disabled for every local and sandbox run. The production job in `.github/workflows/dataform-ci.yml`
-checks whether the merge changed `external_tables.sqlx`, and only then passes
-`--vars=createExternalTables=true`. Merges that don't touch the file run the pipeline without
-re-issuing the DDL.
+passes `--vars=createExternalTables=true` on every run, so the DDL is re-issued each time.
 
 If you ever need to execute it locally, `--vars=createExternalTables=true` would do it — but
 it writes production datasets, so it will fail unless you have production write.

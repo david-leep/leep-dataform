@@ -130,8 +130,8 @@ dataform run --schema-suffix <yourname> --tags marts
 ```
 
 The `sources` tag holds the external table DDL, which is skipped unless
-`--vars=createExternalTables=true` is passed. Only the production CI job does that, and only
-when `external_tables.sqlx` changes — so `--tags sources` does nothing locally. See
+`--vars=createExternalTables=true` is passed. Only the production CI job does that, on every
+run — so `--tags sources` does nothing locally. See
 [CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new Google Sheet source.
 
 Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on the first run in a fresh sandbox. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.

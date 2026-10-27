@@ -18,7 +18,6 @@ OPTIONS (
   skip_leading_rows = 1
 );
 
--- Rebuild picks up the adjustment_causal column added to the sheet.
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.assumptions`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
