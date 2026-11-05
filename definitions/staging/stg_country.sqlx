@@ -12,6 +12,7 @@ config {
 
 SELECT
   country_code,
+  region,
   income_group
 FROM
   ${ref("country_metadata")}

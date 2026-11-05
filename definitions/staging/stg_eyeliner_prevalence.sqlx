@@ -1,0 +1,28 @@
+config {
+  type: "table",
+  name: "stg_eyeliner_prevalence",
+  schema: "eyeliner",
+  tags: ["staging"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: [
+      "mother_user_rate BETWEEN 0 AND 1",
+      "child_sustained_frequent_user_rate BETWEEN 0 AND 1",
+      "child_neonatal_intensive_user_rate BETWEEN 0 AND 1",
+      "child_occasional_user_rate BETWEEN 0 AND 1",
+      "high_lead_market_share BETWEEN 0 AND 1"
+    ]
+  }
+}
+
+SELECT
+  country_code,
+  mother_user_rate,
+  child_sustained_frequent_user_rate,
+  child_neonatal_intensive_user_rate,
+  child_occasional_user_rate,
+  high_lead_market_share
+FROM
+  ${ref("eyeliner_prevalence")}
+WHERE country_code IS NOT NULL

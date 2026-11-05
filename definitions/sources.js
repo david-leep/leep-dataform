@@ -33,3 +33,33 @@ declare({
   name: "market_share_overrides",
   description: "Manual baseline market share estimates for countries without industry tracker data."
 });
+
+declare({
+  schema: "eyeliner",
+  name: "eyeliner_counterfactual",
+  description: "Country-level program metadata for LEEP's eyeliner programme. One row per country, including engagement status, source of funding, market shift years, target market reduction, and program success probability."
+});
+
+declare({
+  schema: "eyeliner",
+  name: "eyeliner_prevalence",
+  description: "Country-level traditional eyeliner usage rates (mother, sustained/neonatal/occasional child exposure) and the share of the traditional eyeliner market testing as high-lead. One row per country."
+});
+
+declare({
+  schema: "eyeliner",
+  name: "eyeliner_bll_impact",
+  description: "Country-level estimated average BLL impact (ug/dL) from eyeliner exposure, by exposure route: sustained frequent, neonatal intensive, indirect (via mother), and occasional. One row per country."
+});
+
+declare({
+  schema: "eyeliner",
+  name: "eyeliner_assumptions",
+  description: "Global model parameters shared across the eyeliner impact calculation (DALY weights, IQ loss per BLL by route, income loss coefficients). Single-row lookup table."
+});
+
+declare({
+  schema: "eyeliner",
+  name: "eyeliner_discount_rates",
+  description: "Time discount rates for the eyeliner impact model, by market shift year. Dedicated to the eyeliner programme, not shared with paint's core.discount_rates."
+});

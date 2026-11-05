@@ -43,6 +43,7 @@ population_data AS (
 
 SELECT
   c.country_code,
+  c.region,
   c.income_group,
   pd.country_name,
   pd.birth_rate,
