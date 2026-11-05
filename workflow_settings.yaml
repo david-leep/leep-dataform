@@ -5,3 +5,8 @@ defaultProject: leep-data-system
 defaultDataset: paint
 defaultAssertionDataset: dataform_assertions
 dataformCoreVersion: 3.0.42
+
+# Set to "true" only by the production CI job, to execute the external table
+# DDL in definitions/sources/external_tables.sqlx. Sandbox runs leave it off.
+vars:
+  createExternalTables: "false"

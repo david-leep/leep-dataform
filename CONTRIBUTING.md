@@ -43,7 +43,7 @@ You can also just ask: *"Start me a new branch called sarah-add-region-column."*
 
 **2. Understand before you change.** Ask Claude Code to orient you first:
 
-> Explain what `definitions/marts/paint_country_summary.sqlx` does in plain English, and show me where `tier` is calculated.
+> Explain what `definitions/marts/paint_summary_by_country.sqlx` does in plain English, and show me where `tier` is calculated.
 
 Read the answer. If you can't yet say what the file does in a sentence, keep asking. This is the step that prevents most mistakes.
 
@@ -51,7 +51,7 @@ Read the answer. If you can't yet say what the file does in a sentence, keep ask
 
 > Add a `region` column from `stg_country` through to the mart. Show me each file you'll change and why before you edit.
 
-Ask it to show its plan first, read it, then let it edit. It follows our conventions (join on `country_code`, explicit column lists, no `SELECT *` except `stg_counterfactual`) because they're in `CLAUDE.md`.
+Ask it to show its plan first, read it, then let it edit. It follows our conventions (join on `country_code`, explicit column lists, no `SELECT *`) because they're in `CLAUDE.md`.
 
 **4. Compile — after every edit.**
 
@@ -97,10 +97,12 @@ You don't need to memorise git or SQL — you need a handful of ways to ask. Kee
 To refresh tables into your sandbox after a change (or just to see current output), run with your suffix — **never** a plain `dataform run`:
 
 ```bash
-dataform run --schema-suffix yourname --actions paint_country_summary
+dataform run --schema-suffix yourname --actions paint_summary_by_country
 ```
 
-You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect, still safe as long as it targets your workspace, not production.
+`--actions` takes the table name from the `config` block, which matches the file name.
+
+You can also trigger a run from the Dataform UI's **Start execution** button if you prefer clicking to typing — same effect. Target your workspace, not production; if you get it wrong the run fails on permissions rather than overwriting anything.
 
 ---
 
@@ -114,7 +116,71 @@ For a quick edit when you don't want to open VS Code, Dataform's browser UI mirr
 4. **Push and open a PR.** Click **Push to remote**, then go to the [GitHub repo](https://github.com/david-leep/leep-dataform) and click **Compare & pull request**. Describe what changed, request review from David, and don't merge your own PR.
 5. **After merge**, either **Pull from remote** to reuse the workspace, or create a fresh one for your next change.
 
-You can run the pipeline into your sandbox from the UI's **Start execution** button — always confirm it targets your workspace, never production.
+You can run the pipeline into your sandbox from the UI's **Start execution** button — always
+confirm it targets your workspace, never production. Executions run as a service account
+rather than as you, so check the target carefully; see *Who can write what* below.
+
+---
+
+## Who can write what (access model)
+
+The short version: **you can read production, but you cannot write it.** Production is
+written by one automated identity, and only after a PR is merged.
+
+### The two service accounts
+
+You never run the pipeline as yourself. Local runs and Dataform UI runs act as a service
+account, and which one decides what can be written.
+
+| | `dataform-sandbox` | `dataform-executor` |
+|---|---|---|
+| **Who uses it** | You — every local run | GitHub Actions, after a merge to `main` |
+| **How** | You impersonate it (no key, no password) | A key held only as a GitHub secret |
+| **Reads production** | Yes — all of `paint`, `core`, `dataform_assertions` | Yes |
+| **Writes production** | **No** | Yes |
+| **Writes sandboxes** | Yes — any `paint_*`, `core_*`, `dataform_assertions_*` | Writes `paint_ci` on PRs |
+
+`dataform-sandbox` holds `bigquery.dataEditor` under an IAM condition that only matches
+dataset names with a suffix — `paint_sarah` matches, `paint` does not. That single
+condition is what makes a forgotten `--schema-suffix` fail instead of overwriting the
+dashboards. Nobody can impersonate `dataform-executor`; the permission is granted on
+`dataform-sandbox` alone.
+
+> **Note for new pipelines:** the condition matches `paint_`, `core_`, and
+> `dataform_assertions_` only. If a new production dataset is added later, sandbox runs
+> against it will fail with a permission error until the condition is extended.
+
+### What this means day to day
+
+| You want to | Works? |
+|---|---|
+| `dataform compile` | Yes — no credentials needed |
+| `dataform run --schema-suffix yourname` | Yes — writes your own sandbox |
+| `dataform run` with the suffix forgotten | **No** — `Access Denied`, nothing is written |
+| Read any production table, in the console or a query | Yes |
+| Overwrite a sandbox you created earlier | Yes |
+| Create or refresh an external table yourself | **No** — see *Adding a new Google Sheet source* |
+| Merge to `main`, then approve the production run | Yes — the normal path to production |
+
+Access comes from the **`research@leadelimination.org`** group, which carries both the
+permission to impersonate `dataform-sandbox` and read access to BigQuery. Ask David to be
+added. The source Google Sheets are read by the service account, not by you, so you do not
+need any Drive setup.
+
+### Sanctioned exceptions
+
+Two things can write production without a merge. Both are deliberate:
+
+- **A maintainer running the pipeline from the Dataform UI.** Used to re-run production
+  on demand. Requires Dataform permissions that researchers do not have.
+- **The quarterly World Bank ingest** (`monthly-pipeline-sa`), which refreshes
+  `core.indicators_long` on a Cloud Scheduler trigger, independently of this repo.
+
+### Why it is set up this way
+
+A forgotten `--schema-suffix` used to silently overwrite the real dashboards. Now it
+returns a permission error. The convention still applies — always pass the flag — but
+there is a backstop underneath it rather than care alone.
 
 ---
 
@@ -122,7 +188,7 @@ You can run the pipeline into your sandbox from the UI's **Start execution** but
 
 The most common way you'll extend the system (e.g. adding a new M&E or impact source) is adding a Google Sheet. Ask Claude Code to do all three steps — *"Add a new source `stg_water_tracker` from this sheet: <url>"* — and it will follow this pattern. Understanding the three touch-points lets you check its work:
 
-**1. Create the external table** in `definitions/sources/external_tables.sqlx`:
+**1. Add the external table DDL** to `definitions/sources/external_tables.sqlx`:
 
 ```sql
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.<dataset>.<table_name>`
@@ -133,7 +199,53 @@ OPTIONS (
 );
 ```
 
-Run this file manually once in BigQuery or via the Dataform UI after adding it. The file is tagged `disabled: true` so it does not run automatically on every pipeline execution. **Also share the sheet with the account running the pipeline**, or the external table can't read it.
+You don't run this yourself. The file is skipped in every normal run, and executed only by
+the production job after a merge to `main` — so **merging your PR creates the table**. There
+is no manual step and nothing to run in the BigQuery console.
+
+**Share the sheet with both service accounts** as Viewer, before the PR:
+
+- `dataform-sandbox@leep-data-system.iam.gserviceaccount.com` — so sandbox runs can read it
+- `dataform-executor@leep-data-system.iam.gserviceaccount.com` — so production runs can read it
+
+Sheets are read by the service account, never by your own Google account, so sharing it with
+yourself is not enough. This is the step people forget: the table gets created fine and then
+the pipeline fails later with a Drive error.
+
+**If a sheet's columns change**, no extra step is needed: the production job re-runs the DDL
+on every merge, so the external table picks up the new columns.
+
+**One ordering quirk, with two consequences.** Sources are *declared*, not built. A declaration
+is an inert graph node: it names a table, but it neither creates one nor depends on whatever does.
+
+*First,* `--schema-suffix` doesn't apply to declarations, so your sandbox reads production's
+external tables. A brand-new source can't be tested end to end until after the merge. Sequence:
+open the PR → it merges → the production run creates the table → then run the pipeline in your
+sandbox to check the staging table. Everything downstream of staging is testable as normal.
+
+*Second,* a declaration carries no ordering, so a staging table that only `ref()`s its source can
+be scheduled **before** the DDL that creates it. This is why every sheet-backed staging file
+declares `dependencies: ["external_tables"]`. It bites only on a source's first run — once the
+external table exists, later runs find it there regardless of order — which is exactly what makes
+it easy to introduce and hard to notice.
+
+<details>
+<summary><strong>How the DDL gets executed</strong></summary>
+
+The action's `config` block reads:
+
+```js
+disabled: dataform.projectConfig.vars.createExternalTables !== "true"
+```
+
+`createExternalTables` defaults to `"false"` in `workflow_settings.yaml`, so the action is
+disabled for every local and sandbox run. The production job in `.github/workflows/dataform-ci.yml`
+passes `--vars=createExternalTables=true` on every run, so the DDL is re-issued each time.
+
+If you ever need to execute it locally, `--vars=createExternalTables=true` would do it — but
+it writes production datasets, so it will fail unless you have production write.
+
+</details>
 
 **2. Declare the source** in `definitions/sources.js`:
 
@@ -153,7 +265,9 @@ This tells Dataform the table exists so `${ref("<table_name>")}` resolves correc
 config {
   type: "table",
   name: "stg_<table_name>",
-  tags: ["staging"]
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"]
 }
 
 SELECT
@@ -165,6 +279,19 @@ WHERE column_a IS NOT NULL
 
 Use explicit column names rather than `SELECT *` to make schema changes visible. Filter out null/header rows.
 
+**The `dependencies: ["external_tables"]` line is required**, and is easy to leave out because
+everything still compiles without it. `${ref()}` points at the *declaration*, which is an inert
+node — it creates no ordering relationship with the action that issues the `CREATE EXTERNAL TABLE`.
+Without the explicit dependency, Dataform is free to build your staging table before the DDL has
+run, and the first production run after the merge fails with:
+
+```
+bigquery error: Not found: Table leep-data-system:<dataset>.<table_name> was not found in location EU
+```
+
+Only sheet-backed sources need this. Staging tables over native BigQuery tables
+(`stg_country`, `stg_indicators_long`) have no DDL to wait for.
+
 ---
 
 ## Adding a column to an existing table
@@ -174,10 +301,10 @@ Use explicit column names rather than `SELECT *` to make schema changes visible.
 3. To find dependents quickly: `grep -r "ref(\"stg_<table_name>\")"` — or just ask Claude Code the same thing.
 
 Common pattern — adding a column from `stg_counterfactual` all the way to the mart:
-- Add to `stg_counterfactual.sqlx` (or confirm it comes through via `SELECT *`)
+- Add to the `SELECT` list in `stg_counterfactual.sqlx`
 - Add to the `joined` CTE in `int_paint_program_base.sqlx` (explicit list)
 - Add to the final `SELECT` in `int_paint_program_base.sqlx`
-- Add to the final `SELECT` in `paint_country_summary.sqlx` (intermediate CTEs use `SELECT *` so they pass through automatically)
+- Add to the final `SELECT` in `paint_summary_by_country.sqlx` (intermediate CTEs use `SELECT *` so they pass through automatically)
 
 ---
 
@@ -195,7 +322,7 @@ config {
 }
 ```
 
-3. Reference upstream tables with `${ref("table_name")}` — never hardcode BigQuery paths (except for unmanaged external tables like `stg_discount_rates`, which uses a hardcoded path because it sits in a different schema)
+3. Reference upstream tables with `${ref("table_name")}` — never hardcode BigQuery paths (except for undeclared external tables like `stg_discount_rates`, which uses a hardcoded path because it has no `declare()` entry — it still needs `dependencies: ["external_tables"]` for ordering)
 4. One transformation per file. If a CTE is getting complex enough to be reused, it probably belongs in its own intermediate table.
 
 ---
@@ -208,20 +335,20 @@ config {
 - For the paint pipeline, the main calculation chain is:
 
 ```
-stg_counterfactual + stg_market_share_overrides
+stg_counterfactual + stg_market_share_overrides + stg_tier_overrides_selected
         ↓
 int_lead_paint_market_share  (market share per country per month)
         ↓
 int_paint_program_base       (children averted, cBLL averted)
         ↓
-paint_country_summary        (DALYs, discounting, tier)
+paint_summary_by_country     (DALYs, discounting, tier)
 ```
 
 ---
 
 ## Testing changes
 
-**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production — running there overwrites real data that Looker Studio and the team depend on. Work through this ladder before opening a PR, cheapest and lowest-risk first. Claude Code does the typing; **your job is to read and judge the output at each rung.**
+**Never run `dataform run` without `--schema-suffix`.** The default dataset (`paint`) is production. You no longer *can* write there — the run fails with `Access Denied` — but treat the flag as the rule, not the error message as the backstop. Work through this ladder before opening a PR, cheapest and lowest-risk first. Claude Code does the typing; **your job is to read and judge the output at each rung.**
 
 ### 1. Compile check
 
@@ -259,7 +386,7 @@ Assertions defined in each table's `config` block (`uniqueKey`, `nonNull`, `rowC
 
 Once a sandbox run is clean, confirm the change actually did what you intended — this is the step that verifies correctness, not just that nothing broke. Ask Claude Code to compare your sandbox mart against prod, e.g.:
 
-> Write a query comparing `paint_<yourname>.paint_country_summary` to `paint.paint_country_summary` — show me which rows and columns differ.
+> Write a query comparing `paint_<yourname>.paint_summary_by_country` to `paint.paint_summary_by_country` — show me which rows and columns differ.
 
 Read the diff yourself and judge whether it matches what you meant to change:
 - Are the rows that changed the ones you expected to change (and no others)?
@@ -274,7 +401,7 @@ Once you're satisfied, open a PR (see below).
 
 ## Viewing results in Looker Studio
 
-The mart tables (`paint_country_summary`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
+The mart tables (`paint_summary_by_country`, `mart_industry_country_summary`) connect directly to Looker Studio as BigQuery data sources.
 
 **To find a column:**
 1. Open the relevant Looker Studio report
@@ -299,6 +426,6 @@ You don't need to memorise these — Claude Code already knows them from `CLAUDE
 - **Joins**: always join on `country_code`, not country name — World Bank names differ from common usage for many countries (DRC, Egypt, Cote D'Ivoire, Türkiye, etc.)
 - **Column names**: snake_case, descriptive over abbreviated
 - **CTEs over subqueries**: use named CTEs for any logic more than one step deep
-- **No `SELECT *` in staging/intermediate**: list columns explicitly to catch schema drift early. Exception: `stg_counterfactual` uses `SELECT *` intentionally so new columns added to the sheet flow through without a code change.
+- **No `SELECT *` in staging/intermediate**: list columns explicitly to catch schema drift early.
 - **One purpose per file**: if a file is doing two unrelated things, split it
 - **Comments**: only where the logic isn't self-evident — business rules, non-obvious branch conditions, workarounds

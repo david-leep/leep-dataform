@@ -2,6 +2,8 @@ config {
   type: "table",
   name: "stg_assumptions",
   tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
   assertions: {
     nonNull: [
       "percentage_newly_painted_homes_per_year",
@@ -15,7 +17,8 @@ config {
       "daly_to_income_factor",
       "program_success_probability",
       "percentage_urban_homes_painted",
-      "percentage_rural_homes_painted"
+      "percentage_rural_homes_painted",
+      "adjustment_causal"
     ],
     rowConditions: [
       "percentage_newly_painted_homes_per_year BETWEEN 0 AND 1",
@@ -23,7 +26,8 @@ config {
       "colored_paint_market_share BETWEEN 0 AND 1",
       "program_success_probability BETWEEN 0 AND 1",
       "percentage_urban_homes_painted BETWEEN 0 AND 1",
-      "percentage_rural_homes_painted BETWEEN 0 AND 1"
+      "percentage_rural_homes_painted BETWEEN 0 AND 1",
+      "adjustment_causal > 0 AND adjustment_causal <= 1"
     ]
   }
 }
@@ -40,6 +44,7 @@ SELECT
   daly_to_income_factor,
   program_success_probability,
   percentage_urban_homes_painted,
-  percentage_rural_homes_painted
+  percentage_rural_homes_painted,
+  adjustment_causal
 FROM
   ${ref("assumptions")}

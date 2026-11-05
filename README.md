@@ -4,6 +4,14 @@ SQL transformation pipeline for LEEP data, built with [Dataform](https://cloud.g
 
 This repo is connected to the Dataform project in GCP (`leep-data-system`, region `europe-west4`). Changes made here are reflected in the Dataform UI, and changes made in the Dataform UI are committed back to this repo.
 
+## Access
+
+Production (`paint`, `core`, `dataform_assertions`) is read-only for everyone. Local runs act
+as the `dataform-sandbox` service account and can only write suffixed sandbox datasets;
+production is written by the CI job after a merge to `main`. See
+[CONTRIBUTING.md](CONTRIBUTING.md) § Who can write what, and [SETUP_GUIDE.md](SETUP_GUIDE.md)
+Part 6 for first-time setup.
+
 ## What this does
 
 Raw data is ingested into BigQuery by Cloud Functions (see [leep-data-system](https://github.com/david-leep/leep-data-system)). This Dataform project takes those raw tables and transforms them into analysis-ready tables.
@@ -23,17 +31,18 @@ definitions/
 │   ├── stg_country.sqlx              # LMIC country list filtered from country_metadata
 │   ├── stg_indicators_long.sqlx      # World Bank indicators pre-filtered to the 3 used downstream
 │   ├── stg_industry_full.sqlx        # Dynamic column cleaning for industry_full_raw (EXECUTE IMMEDIATE)
-│   ├── stg_counterfactual.sqlx       # Counterfactual assumptions per country (market shift timing, reduction target, program metadata)
+│   ├── stg_counterfactual.sqlx       # Market shift years per country, with and without LEEP
 │   ├── stg_assumptions.sqlx          # Global model parameters (BLL impact, DALY rates, etc.)
 │   ├── stg_discount_rates.sqlx       # Health and income DALY discount rates by market_shift_year
-│   └── stg_market_share_overrides.sqlx  # Manual baseline market share estimates for countries without industry tracker data
+│   ├── stg_market_share_overrides.sqlx  # Baseline market share overrides that take priority over industry tracker values
+│   └── stg_tier_overrides_selected.sqlx  # Tier overrides that replace the DALY-derived tier
 ├── intermediate/                     # Joins and derived calculations, not intended for direct analysis
 │   ├── int_country_profile.sqlx      # Joins country list with World Bank indicators; pivots to one row per country
 │   ├── int_industry_full.sqlx        # Incremental table partitioned by month — monthly snapshots of industry data
 │   ├── int_lead_paint_market_share.sqlx  # Baseline and current lead paint market share per country per month (current excludes reformulated manufacturers)
 │   └── int_paint_program_base.sqlx   # Joins all sources; computes exposure and children averted (potential and to-date)
 └── marts/                            # Final output tables used for analysis and reporting
-    ├── paint_country_summary.sqlx    # DALY estimates per country (undiscounted, discounted, probability-weighted)
+    ├── paint_summary_by_country.sqlx # DALY estimates per country (undiscounted, discounted, probability-weighted)
     └── mart_industry_country_summary.sqlx  # Manufacturer milestone counts and volumes per country
 ```
 
@@ -46,7 +55,8 @@ definitions/
  counterfactual           ──┤         country_metadata ──┤
  assumptions              ──┤                            │
  discount_rates           ──┤                            │
- market_share_overrides   ──┘                            │
+ market_share_overrides   ──┤                            │
+ tier_overrides_selected  ──┘                            │
         │                                                │
         ▼                                                ▼
  sources/external_tables.sqlx        sources.js
@@ -61,6 +71,7 @@ definitions/
               │  stg_assumptions                   │
               │  stg_discount_rates                │
               │  stg_market_share_overrides        │
+              │  stg_tier_overrides_selected       │
               │  stg_country              ───┐     │
               │  stg_indicators_long      ───┘     │
               └────────────────────────────────────┘
@@ -95,7 +106,7 @@ definitions/
                  │                       stg_assumptions
                  ▼  MARTS               stg_discount_rates
  ┌────────────────────────────┐          stg_market_share_overrides
- │  paint_summary_by_country  │
+ │  paint_summary_by_country  │          stg_tier_overrides_selected
  │  (DALYs averted,           │
  │   discounted,              │
  │   probability-weighted,    │
@@ -110,19 +121,24 @@ definitions/
 - **intermediate/** — joins staging tables together and computes derived metrics; not the final output but too complex to live in a mart
 - **marts/** — reads from intermediate tables and produces the final analysis-ready output
 
-Each layer has a tag so you can run selectively:
+Each layer has a tag so you can run selectively. Always pass `--schema-suffix <yourname>` —
+runs without it target production and will fail on permissions:
 
 ```bash
-dataform run --tags sources
-dataform run --tags staging
-dataform run --tags intermediate
-dataform run --tags marts
+dataform run --schema-suffix <yourname> --tags staging
+dataform run --schema-suffix <yourname> --tags intermediate
+dataform run --schema-suffix <yourname> --tags marts
 ```
 
-Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on first run. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.
+The `sources` tag holds the external table DDL, which is skipped unless
+`--vars=createExternalTables=true` is passed. Only the production CI job does that, on every
+run — so `--tags sources` does nothing locally. See
+[CONTRIBUTING.md](CONTRIBUTING.md) § Adding a new Google Sheet source.
+
+Incremental tables (`int_industry_full`) must be initialised with `--full-refresh` on the first run in a fresh sandbox. Without it, Dataform tries to delete from a table that doesn't exist yet and fails. Subsequent runs do not need this flag.
 
 ```bash
-dataform run --tags intermediate --full-refresh  # first run only
+dataform run --schema-suffix <yourname> --actions int_industry_full --full-refresh  # first run in a sandbox
 ```
 
 ## Key calculations (paint pipeline)
@@ -135,8 +151,8 @@ This Dataform pipeline creates program-level estimates of impact for LEEP's pain
 4. **Exposure base** (`int_paint_program_base`) — uses the latest month's baseline and current market share from `int_lead_paint_market_share` to compute children born in lead-painted homes, then calculates how many children's exposure is averted under two scenarios:
    - **Potential**: assumes the full `lead_paint_reduction_percentage` is achieved
    - **To-date**: uses the actual observed reduction (`baseline − current` market share)
-   - For countries without industry tracker data, `baseline_lead_paint_market_share` falls back to `stg_market_share_overrides`; these countries have no to-date impact (current market share is set to NULL). All joins are on `country_code` to avoid country name mismatches.
-5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting (`stg_discount_rates`) and probability weighting. Includes `program`, `status`, `source_of_funding` columns from the counterfactual and a `tier` classification (A–D) based on `potential_dalys_discounted`.
+   - Where `stg_market_share_overrides` has a value for a country, it replaces the tracker baseline (`is_market_share_overridden` is true). Overridden countries keep the tracker's proportional reduction rescaled to the override baseline; those without tracker data have no to-date impact (current market share is NULL). All joins are on `country_code` to avoid country name mismatches.
+5. **DALY estimates** (`paint_summary_by_country`) — converts averted exposure into health DALYs and income-equivalent DALYs, applies time discounting (`stg_discount_rates`) and probability weighting. Includes `program`, `status`, `source_of_funding` columns from the counterfactual and a `tier` classification (A–D) based on `potential_dalys_discounted`. Where `stg_tier_overrides_selected` has a value, it replaces the calculated tier (kept as `calculated_tier`). `tier_display` and `baseline_lead_paint_market_share_display` add an asterisk to overridden values for dashboards.
 
 ## Data sources (raw BigQuery tables)
 
@@ -146,11 +162,12 @@ Split across two datasets in `leep-data-system`:
 |---|---|---|
 | `country_metadata` | `core` | Country classifications — income group, country code |
 | `indicators_long` | `core` | World Bank development indicators (ingested by Cloud Function) |
-| `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Manu Data" tab) — column names auto-detected and cleaned at runtime |
-| `counterfactual` | `paint` | Counterfactual scenario assumptions per country — market shift timing, reduction target, program metadata (program, status, source_of_funding) |
+| `industry_full_raw` | `paint` | Full manufacturer-level industry data from Google Sheet ("All Tracker Data" tab) — column names auto-detected and cleaned at runtime |
+| `counterfactual` | `paint` | Market shift years per country with and without LEEP, updated quarterly from PM M&E docs (tab `data_system_market_shift_and_cf_input`) |
 | `assumptions` | `paint` | Global model parameters — BLL impact, DALY rates, etc. |
 | `discount_rates` | `core` | Health and income DALY discount rates, keyed by `market_shift_year` |
-| `market_share_overrides` | `paint` | Manual baseline market share estimates for countries without industry tracker data |
+| `market_share_overrides` | `paint` | Baseline market share overrides per country ("market_share_overrides_tab"), taking priority over industry tracker values |
+| `tier_overrides_selected` | `paint` | Tier overrides per country ("tier_overrides_tab"), replacing the DALY-derived tier |
 
 ## Contributing
 

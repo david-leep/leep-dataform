@@ -39,6 +39,9 @@ to git, SQL, and Claude Code. When you help them:
    (`paint`) is **production** — the real numbers on the dashboards. A suffixed run
    writes to a private sandbox (e.g. `paint_sarah`) and cannot touch production.
    If a user asks you to run the pipeline, always add `--schema-suffix <theirname>`.
+   Local runs act as the `dataform-sandbox` service account, which has no write access
+   to production, so omitting the flag fails with `Access Denied` rather than
+   overwriting anything. Treat that as a backstop, not a licence to omit the flag.
 3. **Run `dataform compile` after every edit** to a `.sqlx` or `sources.js` file. It
    needs no credentials, has zero risk, and takes seconds. Fix compile errors before
    moving on. Do this reflexively, not just before committing.
@@ -71,27 +74,31 @@ int_lead_paint_market_share  baseline vs current lead-paint market share per cou
         ↓ (both feed)
 int_paint_program_base       children with averted lead exposure (potential and to-date)
         ↓
-paint_country_summary        health + income DALYs, time discounting, probability weighting, tier A–D
+paint_summary_by_country     health + income DALYs, time discounting, probability weighting, tier A–D
 ```
 
 The two mart outputs:
-- `paint_country_summary` — DALY impact per country (potential and to-date).
+- `paint_summary_by_country` — DALY impact per country (potential and to-date).
 - `mart_industry_country_summary` — manufacturer engagement milestones and paint volumes.
 
 Sources are declared in `definitions/sources.js` (native BigQuery tables) and created
 as external tables in `definitions/sources/external_tables.sqlx` (Google Sheets-backed).
+Every staging table reading a sheet-backed source must declare `dependencies: ["external_tables"]`
+so the DDL is ordered ahead of it — see the recipe at the end of this file.
 
 ---
 
 ## Project facts
 
-- Dataform + BigQuery. GCP project: `leep-data-system`. Region: `europe-west4` (EU).
+- Dataform + BigQuery. GCP project: `leep-data-system`. Dataset location: `EU` (multi-region).
+  New datasets must be created as `EU` — a single-region dataset cannot be joined against these.
 - Dataform Core version: `3.0.42` (see `workflow_settings.yaml`). Default dataset:
   `paint` (production). Assertions dataset: `dataform_assertions`.
 - External tables are backed by **Google Sheets**. The data is live, but
   `INFORMATION_SCHEMA` reflects the schema from when `CREATE EXTERNAL TABLE` last ran —
-  so if a sheet column is renamed, the external table won't see it until the DDL in
-  `external_tables.sqlx` is re-run. Warn the user about this if they change a source sheet.
+  so if a sheet column is renamed or added, the external table won't see it until the DDL in
+  `external_tables.sqlx` is re-run. The production job re-runs it on every merge, but a
+  sandbox run can't see the change until then. Warn the user about this if they change a source sheet.
 
 ---
 
@@ -100,8 +107,7 @@ as external tables in `definitions/sources/external_tables.sqlx` (Google Sheets-
 - **Join on `country_code`, never on country name.** Names are inconsistent across sources.
 - **snake_case** for all column names. Clear descriptive names over abbreviations.
 - **Explicit column lists**, never `SELECT *`, in staging and intermediate tables — this
-  prevents silent schema drift. The one intentional exception is `stg_counterfactual`;
-  leave it as is.
+  prevents silent schema drift.
 - **CTEs over nested subqueries.** Keep SQL readable and top-to-bottom.
 - **One transformation per file.** Each `.sqlx` has a single clear purpose.
 - **Add assertions** to the `config` block of new/changed staging, intermediate, and mart
@@ -138,10 +144,20 @@ Sheet source) and the full testing ladder.
 
 **Add a column to an existing table:** add it to the staging `SELECT`, then trace it
 downstream through the explicit column lists in `int_paint_program_base` and
-`paint_country_summary` so it survives to the mart. Compile, sandbox-run, check.
+`paint_summary_by_country.sqlx` so it survives to the mart. Compile, sandbox-run, check.
 
 **Add a new Google Sheet source (three steps):** (1) external table DDL in
 `definitions/sources/external_tables.sqlx`; (2) declare it in `definitions/sources.js`;
-(3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns. The DDL
-file is tagged `disabled: true` so it doesn't run on every pipeline execution — it must
-be run manually once.
+(3) a staging file `definitions/staging/stg_<name>.sqlx` with explicit columns **and
+`dependencies: ["external_tables"]`**. That dependency is mandatory and easy to forget —
+`${ref()}` resolves to the declaration, which is an inert node carrying no ordering, so
+without it Dataform may build the staging table before the DDL has created the source.
+It compiles clean either way and only fails on the source's very first run, with
+`Not found: Table ... was not found in location EU`. Only sheet-backed sources need it;
+staging over native BigQuery tables has no DDL to wait for. The DDL
+file is gated behind the `createExternalTables` var, so it is skipped in every run except
+the production job (which passes `--vars=createExternalTables=true`). That means merging
+the PR creates the table — there is no manual DDL step. Tell the user to share the sheet
+with both service accounts (`dataform-sandbox` and `dataform-executor`), and warn them the
+new source can't be tested end to end until after the merge, since declarations aren't
+schema-suffixed.

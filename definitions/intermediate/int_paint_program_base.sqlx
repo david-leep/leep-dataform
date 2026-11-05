@@ -5,7 +5,7 @@ config {
   tags: ["intermediate"],
   assertions: {
     uniqueKey: ["country_code"],
-    nonNull: ["country_code"],
+    nonNull: ["country_code", "is_market_share_overridden"],
     rowConditions: [
       // Countries with no active program legitimately have no discount rate (market_shift_year
       // is null). But if a program exists, its market_shift_year must be covered by
@@ -17,17 +17,22 @@ config {
 
 WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
 
-     -- Get the latest month-year's market share per country
+     -- Latest month's market share per country
      latest_lpm AS (
        SELECT * FROM ${ref("int_lead_paint_market_share")}
        WHERE year_month = (
          SELECT MAX(year_month) FROM ${ref("int_lead_paint_market_share")}
        )
      ),
+     -- Counterfactual sheet supplies the market shift years, updated quarterly from PM M&E docs;
+     -- program metadata and the reduction assumption come from stg_program_status.
      cf   AS (SELECT * FROM ${ref("stg_counterfactual")}),
+     -- stg_program_status covers every LEEP program, so restrict it to paint here.
+     ps   AS (SELECT * FROM ${ref("stg_program_status")} WHERE program = 'Paint'),
      pa   AS (SELECT * FROM ${ref("stg_assumptions")}),
      dr   AS (SELECT * FROM ${ref("stg_discount_rates")}),
      mso  AS (SELECT * FROM ${ref("stg_market_share_overrides")}),
+     tov  AS (SELECT * FROM ${ref("stg_tier_overrides_selected")}),
 
      -- Step 1: join all sources, compute market share inputs
      joined AS (
@@ -37,29 +42,36 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          cp.income_group,
          cp.annual_number_of_births,
          cp.urban_rate,
-         -- Use override when no industry tracker data exists; override countries have no to-date impact
-         COALESCE(latest_lpm.baseline_lead_paint_market_share, mso.market_share_assumption)    AS baseline_lead_paint_market_share,
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share
-              ELSE NULL
+         -- An override takes priority over the tracker baseline wherever the sheet has a value
+         COALESCE(mso.market_share_assumption, latest_lpm.baseline_lead_paint_market_share)    AS baseline_lead_paint_market_share,
+         mso.market_share_assumption IS NOT NULL                                                AS is_market_share_overridden,
+         -- Overridden countries keep the tracker's proportional reduction, rescaled to the override
+         -- baseline; NULL (no to-date impact) where there is no tracker baseline to scale from
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share
          END                                                                                    AS current_lead_paint_market_share,
          -- Pipeline scenarios: manufacturers at an earlier milestone credited as reformulated
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share_taking_steps
-              ELSE NULL
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share_taking_steps, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share_taking_steps
          END                                                                                    AS current_lead_paint_market_share_taking_steps,
-         CASE WHEN latest_lpm.baseline_lead_paint_market_share IS NOT NULL
-              THEN latest_lpm.current_lead_paint_market_share_significant_progress
-              ELSE NULL
+         CASE WHEN mso.market_share_assumption IS NOT NULL
+              THEN mso.market_share_assumption
+                * SAFE_DIVIDE(latest_lpm.current_lead_paint_market_share_significant_progress, latest_lpm.baseline_lead_paint_market_share)
+              ELSE latest_lpm.current_lead_paint_market_share_significant_progress
          END                                                                                    AS current_lead_paint_market_share_significant_progress,
+         tov.tier_assumption                                                                    AS tier_override,
          latest_lpm.year_month                                                                  AS market_share_year_month,
-         cf.program,
-         cf.status,
-         cf.source_of_funding,
+         ps.program,
+         ps.status,
+         ps.source_of_funding,
          cf.market_shift_year,
          cf.additional_years_before_market_shift_without_leep,
-         cf.market_shift_year + cf.additional_years_before_market_shift_without_leep            AS market_shift_counterfactual_year,
-         cf.lead_paint_reduction_percentage,
+         cf.market_shift_counterfactual_year,
+         ps.lead_paint_reduction_percentage,
          pa.paint_bll_impact_ug_per_dl,
          pa.health_dalys_per_bll,
          pa.iq_points_lost_per_bll,
@@ -73,12 +85,15 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
          pa.percentage_rural_homes_painted,
          pa.colored_paint_market_share,
          pa.percentage_newly_painted_homes_per_year,
-         pa.percentage_repainted_homes_per_year
+         pa.percentage_repainted_homes_per_year,
+         pa.adjustment_causal
        FROM cp
        LEFT JOIN latest_lpm            ON cp.country_code = latest_lpm.country_code
        LEFT JOIN cf                    ON cp.country_code = cf.country_code
+       LEFT JOIN ps                    ON cp.country_code = ps.country_code
        LEFT JOIN dr                    ON dr.market_shift_year = cf.market_shift_year
        LEFT JOIN mso                   ON cp.country_code = mso.country_code
+       LEFT JOIN tov                   ON cp.country_code = tov.country_code
        CROSS JOIN pa
      ),
 
@@ -86,8 +101,6 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
      exposure_base AS (
        SELECT
          *,
-         baseline_lead_paint_market_share * lead_paint_reduction_percentage
-           AS potential_market_share_reduction,
          baseline_lead_paint_market_share - current_lead_paint_market_share
            AS to_date_market_share_reduction,
          baseline_lead_paint_market_share - current_lead_paint_market_share_taking_steps
@@ -102,45 +115,66 @@ WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
        FROM joined
      ),
 
+     -- Step 2b: a country can outperform its assumed ceiling, which would otherwise make
+     -- potential impact smaller than impact already achieved. Floor the assumed fraction at
+     -- the realised one. IFNULL is required: GREATEST returns NULL if any argument is NULL,
+     -- and SAFE_DIVIDE is NULL where baseline market share is zero.
+     effective_reduction AS (
+       SELECT
+         *,
+         GREATEST(
+           lead_paint_reduction_percentage,
+           IFNULL(SAFE_DIVIDE(to_date_market_share_reduction, baseline_lead_paint_market_share), 0)
+         ) AS effective_reduction_percentage
+       FROM exposure_base
+     ),
+
      -- Step 3: children born in lead-painted homes (using baseline market share)
      lead_exposure AS (
        SELECT
          *,
+         baseline_lead_paint_market_share * effective_reduction_percentage
+           AS potential_market_share_reduction,
          -- R: children born annually in homes painted with lead paint
          baseline_lead_paint_market_share
            * colored_paint_market_share
            * (percentage_newly_painted_homes_per_year + percentage_repainted_homes_per_year)
            * children_born_in_painted_homes
            AS children_born_in_lead_painted_homes
-       FROM exposure_base
+       FROM effective_reduction
      ),
 
-     -- Step 4: total children with averted exposure over the counterfactual window
+     -- Step 4: total children with averted exposure over the counterfactual window,
+     -- scaled by adjustment_causal to match the causal model
      averted_exposure AS (
        SELECT
          *,
-         -- V_potential: using assumed max reduction
+         -- V_potential: assumed max reduction, floored at the reduction already realised
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
-           * lead_paint_reduction_percentage
+           * effective_reduction_percentage
+           * adjustment_causal
            AS children_averted_potential,
          -- V_to_date: using actual observed reduction
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date,
          -- V_to_date under each pipeline scenario
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction_taking_steps, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date_taking_steps,
          children_born_in_lead_painted_homes
            * (1 / percentage_repainted_homes_per_year)
            * additional_years_before_market_shift_without_leep
            * SAFE_DIVIDE(to_date_market_share_reduction_significant_progress, baseline_lead_paint_market_share)
+           * adjustment_causal
            AS children_averted_to_date_significant_progress
        FROM lead_exposure
      )
@@ -156,13 +190,16 @@ SELECT
   annual_number_of_births,
   urban_rate,
   baseline_lead_paint_market_share,
+  is_market_share_overridden,
   current_lead_paint_market_share,
   current_lead_paint_market_share_taking_steps,
   current_lead_paint_market_share_significant_progress,
   market_share_year_month,
+  tier_override,
   market_shift_year,
   market_shift_counterfactual_year,
   lead_paint_reduction_percentage,
+  effective_reduction_percentage,
   potential_market_share_reduction,
   to_date_market_share_reduction,
   to_date_market_share_reduction_taking_steps,
@@ -182,6 +219,7 @@ SELECT
   health_dalys_discount_rate,
   income_dalys_discount_rate,
   program_success_probability,
+  adjustment_causal,
   children_averted_potential * paint_bll_impact_ug_per_dl AS cbll_averted_potential,
   children_averted_to_date   * paint_bll_impact_ug_per_dl AS cbll_averted_to_date,
   children_averted_to_date_taking_steps        * paint_bll_impact_ug_per_dl AS cbll_averted_to_date_taking_steps,

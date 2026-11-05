@@ -3,6 +3,8 @@ config {
   name: "stg_discount_rates",
   schema: "core",
   tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
   assertions: {
     uniqueKey: ["program", "market_shift_year"],
     nonNull: ["program", "market_shift_year"]

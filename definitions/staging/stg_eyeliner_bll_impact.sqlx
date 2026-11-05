@@ -3,6 +3,8 @@ config {
   name: "stg_eyeliner_bll_impact",
   schema: "eyeliner",
   tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
   assertions: {
     uniqueKey: ["country_code"],
     nonNull: ["country_code"],

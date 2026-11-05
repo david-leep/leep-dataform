@@ -1,27 +1,34 @@
 config {
   type: "operations",
   tags: ["sources"],
-  disabled: true
+  disabled: dataform.projectConfig.vars.createExternalTables !== "true"
 }
+
+-- Every statement here is CREATE OR REPLACE: metadata-only, idempotent, and safe
+-- to re-run. Touching this file is therefore the supported way to rebuild an
+-- external table -- after a sheet's columns change, or if a table is dropped by
+-- hand. The production job only passes createExternalTables=true when this file
+-- appears in the merge diff, so an edit here is what triggers the rebuild.
 
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.counterfactual`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1xMp67BHAGJWqwOIQslr_V7yuLvlpEl9ISGY9zbDo_Qw/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/1qeRyj94QfYr4YhkuRXFbhaMTbjjbsxEmLKSd3GKdlbo/edit'],
+  sheet_range = 'data_system_market_shift_and_cf_input',
   skip_leading_rows = 1
 );
 
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.assumptions`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1vNDJpcBFYQEPbQSHo3813me2KgC_v_S3XZteI5hQDYY/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/11OIJy9Byolv9xaBAVwjNGp6ajzakiV4ePLNZ56pUDkA/edit'],
   skip_leading_rows = 1
 );
 
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.industry_full_raw`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/15_iXYG59jYJk6Psg9fSBgRlzX8dx1EucPQI78Pnjqh4/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/1qrq_L2uula0YRI1S-cFHGkqNBNs9EhX9JDLEsnWKiPY/edit'],
   sheet_range = 'All Tracker Data',
   skip_leading_rows = 1
 );
@@ -29,14 +36,35 @@ OPTIONS (
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.discount_rates`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1Yb910LqJIYw00n3gev_otvR6Td88czZ3ZWpGhHOmeM4/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/1bevXH5RkB7g7SA4YcIBfr4kjggAw7URAk7wdUinMfsg/edit'],
   skip_leading_rows = 1
 );
 
 CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.market_share_overrides`
 OPTIONS (
   format = 'GOOGLE_SHEETS',
-  uris = ['https://docs.google.com/spreadsheets/d/1qmLGqiRC_8T9niFeIey_-kbBE_RYE2x2ikzznywq2sQ/edit'],
+  uris = ['https://docs.google.com/spreadsheets/d/14UqfeMlo1BAUOBFXwVJL6YjGvH91qlft-kVXTa6xQxI/edit'],
+  sheet_range = 'market_share_overrides_tab',
+  skip_leading_rows = 1
+);
+
+-- Explicit schema: all columns are text, so auto-detect can't find the header row.
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.paint.tier_overrides_selected` (
+  country_name STRING,
+  country_code STRING,
+  tier_assumption STRING
+)
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/14UqfeMlo1BAUOBFXwVJL6YjGvH91qlft-kVXTa6xQxI/edit'],
+  sheet_range = 'tier_overrides_tab',
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.program_status`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/16h_lxlNHRuO9oe82hxyGRPOB9CnQYzA9DV-WWec_rIA/edit'],
   skip_leading_rows = 1
 );
 

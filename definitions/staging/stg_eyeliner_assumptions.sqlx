@@ -3,6 +3,8 @@ config {
   name: "stg_eyeliner_assumptions",
   schema: "eyeliner",
   tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
   assertions: {
     nonNull: [
       "health_dalys_per_bll",

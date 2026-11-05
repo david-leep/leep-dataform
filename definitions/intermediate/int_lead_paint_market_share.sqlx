@@ -109,9 +109,11 @@ SELECT
   ms.current_lead_paint_market_share,
   ms.current_lead_paint_market_share_taking_steps,
   ms.current_lead_paint_market_share_significant_progress,
-  cf.program,
-  cf.status,
-  cf.source_of_funding
+  ps.program,
+  ps.status,
+  ps.source_of_funding
 FROM market_share ms
 LEFT JOIN country_map cm ON ms.country_code = cm.country_code
-LEFT JOIN ${ref("stg_counterfactual")} cf ON cm.country_code = cf.country_code
+-- stg_program_status covers every LEEP program, so restrict it to paint here.
+LEFT JOIN ${ref("stg_program_status")} ps
+  ON cm.country_code = ps.country_code AND ps.program = 'Paint'
