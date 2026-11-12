@@ -28,3 +28,5 @@ SELECT
 FROM
   ${ref("eyeliner_counterfactual")}
 WHERE country_code IS NOT NULL
+  -- Dropped countries are excluded from the model entirely, not just deprioritised.
+  AND status != 'drop'
