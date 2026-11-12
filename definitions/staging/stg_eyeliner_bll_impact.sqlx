@@ -1,0 +1,28 @@
+config {
+  type: "table",
+  name: "stg_eyeliner_bll_impact",
+  schema: "eyeliner",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: [
+      "sustained_frequent_bll_impact >= 0",
+      "neonatal_intensive_bll_impact >= 0",
+      "indirect_bll_impact >= 0",
+      "occasional_bll_impact >= 0"
+    ]
+  }
+}
+
+SELECT
+  country_code,
+  sustained_frequent_bll_impact,
+  neonatal_intensive_bll_impact,
+  indirect_bll_impact,
+  occasional_bll_impact
+FROM
+  ${ref("eyeliner_bll_impact")}
+WHERE country_code IS NOT NULL

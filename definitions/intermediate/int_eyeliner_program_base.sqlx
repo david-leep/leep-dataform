@@ -1,0 +1,145 @@
+config {
+  type: "table",
+  name: "int_eyeliner_program_base",
+  schema: "eyeliner",
+  description: "Joins all staging tables for eyeliner programs and computes exposure per route (sustained frequent, neonatal intensive, occasional, mother/indirect): children/mothers newly exposed, potential births with averted exposure, and cBLL averted.",
+  tags: ["intermediate"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: [
+      "market_shift_year IS NULL OR (health_dalys_discount_rate IS NOT NULL AND income_dalys_discount_rate IS NOT NULL)"
+    ]
+  }
+}
+
+WITH cp AS (SELECT * FROM ${ref("int_country_profile")}),
+     cf AS (SELECT * FROM ${ref("stg_eyeliner_counterfactual")}),
+     prev AS (SELECT * FROM ${ref("stg_eyeliner_prevalence")}),
+     bll AS (SELECT * FROM ${ref("stg_eyeliner_bll_impact")}),
+     pa AS (SELECT * FROM ${ref("stg_eyeliner_assumptions")}),
+     dr AS (SELECT * FROM ${ref("stg_eyeliner_discount_rates")}),
+
+     -- Step 1: join all sources, compute the counterfactual window in years
+     joined AS (
+       SELECT
+         cp.country_name,
+         cp.country_code,
+         cp.region,
+         cp.income_group,
+         cp.annual_number_of_births,
+         cf.program,
+         cf.status,
+         cf.source_of_funding,
+         cf.market_shift_year,
+         cf.market_shift_counterfactual_year,
+         cf.market_shift_counterfactual_year - cf.market_shift_year AS counterfactual_years,
+         cf.lead_market_reduction_percentage,
+         cf.program_success_probability,
+         prev.mother_user_rate,
+         prev.child_sustained_frequent_user_rate,
+         prev.child_neonatal_intensive_user_rate,
+         prev.child_occasional_user_rate,
+         prev.high_lead_market_share,
+         bll.sustained_frequent_bll_impact,
+         bll.neonatal_intensive_bll_impact,
+         bll.indirect_bll_impact,
+         bll.occasional_bll_impact,
+         pa.health_dalys_per_bll,
+         pa.iq_points_lost_per_bll,
+         pa.iq_points_lost_per_bll_neonatal,
+         pa.income_loss_percentage_per_iq_point,
+         pa.daly_to_income_factor,
+         pa.number_of_years_spent_working,
+         dr.health_dalys_discount_rate,
+         dr.income_dalys_discount_rate
+       FROM cp
+       INNER JOIN cf   ON cp.country_code = cf.country_code
+       LEFT JOIN prev  ON cp.country_code = prev.country_code
+       LEFT JOIN bll   ON cp.country_code = bll.country_code
+       LEFT JOIN dr    ON dr.market_shift_year = cf.market_shift_year
+       CROSS JOIN pa
+     ),
+
+     -- Step 2: children/mothers newly exposed to high-lead eyeliners per year, by route
+     exposure AS (
+       SELECT
+         *,
+         annual_number_of_births * child_sustained_frequent_user_rate * high_lead_market_share
+           AS children_sustained_frequent_exposed,
+         annual_number_of_births * child_neonatal_intensive_user_rate * high_lead_market_share
+           AS children_neonatal_intensive_exposed,
+         annual_number_of_births * mother_user_rate * high_lead_market_share
+           AS mothers_exposed,
+         annual_number_of_births * child_occasional_user_rate * high_lead_market_share
+           AS children_occasional_exposed
+       FROM joined
+     ),
+
+     -- Step 3: potential births with averted exposure, by route = annual exposed x counterfactual window x reduction%
+     averted AS (
+       SELECT
+         *,
+         children_sustained_frequent_exposed * counterfactual_years * lead_market_reduction_percentage
+           AS births_averted_sustained_frequent,
+         children_neonatal_intensive_exposed * counterfactual_years * lead_market_reduction_percentage
+           AS births_averted_neonatal_intensive,
+         mothers_exposed * counterfactual_years * lead_market_reduction_percentage
+           AS births_averted_indirect,
+         children_occasional_exposed * counterfactual_years * lead_market_reduction_percentage
+           AS births_averted_occasional
+       FROM exposure
+     ),
+
+     -- Step 4: cBLL averted, by route = births averted x estimated average BLL impact for that route.
+     -- A blank BLL impact means "no exposure of this kind" (it always pairs with a 0 usage rate),
+     -- so it's coalesced to 0 rather than left NULL, which would otherwise null out the whole total.
+     cbll AS (
+       SELECT
+         *,
+         births_averted_sustained_frequent * COALESCE(sustained_frequent_bll_impact, 0) AS cbll_averted_sustained_frequent,
+         births_averted_neonatal_intensive * COALESCE(neonatal_intensive_bll_impact, 0) AS cbll_averted_neonatal_intensive,
+         births_averted_indirect           * COALESCE(indirect_bll_impact, 0)          AS cbll_averted_indirect,
+         births_averted_occasional         * COALESCE(occasional_bll_impact, 0)        AS cbll_averted_occasional
+       FROM averted
+     )
+
+SELECT
+  country_name,
+  country_code,
+  region,
+  income_group,
+  program,
+  status,
+  source_of_funding,
+  annual_number_of_births,
+  high_lead_market_share,
+  market_shift_year,
+  market_shift_counterfactual_year,
+  counterfactual_years,
+  lead_market_reduction_percentage,
+  program_success_probability,
+  children_sustained_frequent_exposed,
+  children_neonatal_intensive_exposed,
+  mothers_exposed,
+  children_occasional_exposed,
+  births_averted_sustained_frequent,
+  births_averted_neonatal_intensive,
+  births_averted_indirect,
+  births_averted_occasional,
+  cbll_averted_sustained_frequent,
+  cbll_averted_neonatal_intensive,
+  cbll_averted_indirect,
+  cbll_averted_occasional,
+  -- Total cBLL averted across all routes, used for the (route-agnostic) health DALY calculation
+  cbll_averted_sustained_frequent + cbll_averted_neonatal_intensive
+    + cbll_averted_indirect + cbll_averted_occasional AS cbll_averted_total,
+  health_dalys_per_bll,
+  iq_points_lost_per_bll,
+  iq_points_lost_per_bll_neonatal,
+  income_loss_percentage_per_iq_point,
+  daly_to_income_factor,
+  number_of_years_spent_working,
+  health_dalys_discount_rate,
+  income_dalys_discount_rate
+FROM cbll

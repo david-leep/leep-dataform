@@ -67,3 +67,38 @@ OPTIONS (
   uris = ['https://docs.google.com/spreadsheets/d/16h_lxlNHRuO9oe82hxyGRPOB9CnQYzA9DV-WWec_rIA/edit'],
   skip_leading_rows = 1
 );
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.eyeliner.eyeliner_counterfactual`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1wAEoH-dmjhIdFMx1hoqEIFt_xM6BKXWzooW2QYIUwjg/edit'],
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.eyeliner.eyeliner_prevalence`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1bn9QdKzp88HnIqdzm51eeT4Bhmq_rrZgNXmM1VAfhjM/edit'],
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.eyeliner.eyeliner_bll_impact`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/13Dd3HWOj0OiYLsU1YrG0Y0RK9b9CV8NTJ-Wvj-uZs-E/edit'],
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.eyeliner.eyeliner_assumptions`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1dvChmq5CW2uJYnKtALKHN19OAnJNQMrLGvCKPUFd9UM/edit'],
+  skip_leading_rows = 1
+);
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.eyeliner.eyeliner_discount_rates`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1cDcWm0ThmJIddXJnNKEK7bLJNM0t0PEIZni-vntPQeM/edit'],
+  skip_leading_rows = 1
+);

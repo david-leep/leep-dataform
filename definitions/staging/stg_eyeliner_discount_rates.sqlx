@@ -1,0 +1,23 @@
+config {
+  type: "table",
+  name: "stg_eyeliner_discount_rates",
+  schema: "eyeliner",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["market_shift_year"],
+    nonNull: ["market_shift_year"],
+    rowConditions: [
+      "health_dalys_discount_rate BETWEEN 0 AND 1",
+      "income_dalys_discount_rate BETWEEN 0 AND 1"
+    ]
+  }
+}
+
+SELECT
+  market_shift_year,
+  health_dalys_discount_rate,
+  income_dalys_discount_rate
+FROM
+  ${ref("eyeliner_discount_rates")}

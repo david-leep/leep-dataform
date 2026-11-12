@@ -1,0 +1,31 @@
+config {
+  type: "table",
+  name: "stg_eyeliner_assumptions",
+  schema: "eyeliner",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    nonNull: [
+      "health_dalys_per_bll",
+      "iq_points_lost_per_bll",
+      "iq_points_lost_per_bll_neonatal",
+      "income_loss_percentage_per_iq_point",
+      "daly_to_income_factor",
+      "number_of_years_spent_working"
+    ],
+    rowConditions: [
+      "income_loss_percentage_per_iq_point BETWEEN 0 AND 1"
+    ]
+  }
+}
+
+SELECT
+  health_dalys_per_bll,
+  iq_points_lost_per_bll,
+  iq_points_lost_per_bll_neonatal,
+  income_loss_percentage_per_iq_point,
+  daly_to_income_factor,
+  number_of_years_spent_working
+FROM
+  ${ref("eyeliner_assumptions")}

@@ -1,0 +1,97 @@
+config {
+  type: "table",
+  name: "eyeliner_country_summary",
+  schema: "eyeliner",
+  tags: ["marts"],
+  description: "One row per country summarizing LEEP eyeliner-program potential impact: country demographics, children/mothers with averted lead exposure by route, and health and income DALYs averted. DALYs are time-discounted and program-success-probability weighted. Eyeliner programs are not tiered.",
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "country_name"],
+    rowConditions: [
+      "potential_dalys_discounted >= 0",
+      "potential_dalys_discounted_probability >= 0"
+    ]
+  }
+}
+
+WITH base AS (
+  SELECT * FROM ${ref("int_eyeliner_program_base")}
+),
+
+-- Step 1: health DALYs (route-agnostic) and IQ points lost (route-weighted: neonatal exposure
+-- is weighted at iq_points_lost_per_bll_neonatal, all other routes at iq_points_lost_per_bll)
+daly_components AS (
+  SELECT
+    *,
+    health_dalys_per_bll * cbll_averted_total AS health_dalys_averted,
+    iq_points_lost_per_bll
+        * (cbll_averted_sustained_frequent + cbll_averted_occasional + cbll_averted_indirect)
+      + iq_points_lost_per_bll_neonatal * cbll_averted_neonatal_intensive
+        AS iq_points_loss_averted
+  FROM base
+),
+
+-- Step 2: convert IQ points lost into DALY-equivalent income loss
+income_components AS (
+  SELECT
+    *,
+    income_loss_percentage_per_iq_point * iq_points_loss_averted * number_of_years_spent_working
+      AS years_of_income_loss_averted
+  FROM daly_components
+),
+
+daly_totals AS (
+  SELECT
+    *,
+    years_of_income_loss_averted * daly_to_income_factor AS daly_equivalent_income_loss_averted
+  FROM income_components
+),
+
+-- Step 3: combine health + income DALYs, undiscounted and time-discounted
+combined AS (
+  SELECT
+    *,
+    health_dalys_averted + daly_equivalent_income_loss_averted AS dalys_averted,
+    health_dalys_averted * health_dalys_discount_rate
+      + daly_equivalent_income_loss_averted * income_dalys_discount_rate
+      AS dalys_discounted
+  FROM daly_totals
+),
+
+-- Step 4: apply program-success probability weighting on top of time discounting
+probability_weighted AS (
+  SELECT
+    *,
+    dalys_discounted * program_success_probability AS dalys_discounted_probability
+  FROM combined
+)
+
+SELECT
+  country_name,
+  country_code,
+  region,
+  income_group,
+  program,
+  status,
+  source_of_funding,
+  annual_number_of_births,
+  high_lead_market_share,
+  market_shift_year,
+  market_shift_counterfactual_year,
+  lead_market_reduction_percentage,
+  program_success_probability,
+  children_sustained_frequent_exposed,
+  children_neonatal_intensive_exposed,
+  mothers_exposed,
+  children_occasional_exposed,
+  cbll_averted_sustained_frequent,
+  cbll_averted_neonatal_intensive,
+  cbll_averted_indirect,
+  cbll_averted_occasional,
+  cbll_averted_total,
+  health_dalys_averted AS potential_health_dalys_averted,
+  daly_equivalent_income_loss_averted AS potential_daly_equivalent_income_loss,
+  dalys_averted AS potential_dalys_averted,
+  dalys_discounted AS potential_dalys_discounted,
+  dalys_discounted_probability AS potential_dalys_discounted_probability
+FROM probability_weighted
