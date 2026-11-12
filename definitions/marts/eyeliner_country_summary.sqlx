@@ -51,9 +51,9 @@ daly_totals AS (
 combined AS (
   SELECT
     *,
-    health_dalys_averted + (years_of_income_loss_averted * daly_to_income_factor) AS dalys_averted,
+    health_dalys_averted + daly_equivalent_income_loss_averted AS dalys_averted,
     health_dalys_averted * health_dalys_discount_rate
-      + (years_of_income_loss_averted * daly_to_income_factor) * income_dalys_discount_rate
+      + daly_equivalent_income_loss_averted * income_dalys_discount_rate
       AS dalys_discounted
   FROM daly_totals
 ),
