@@ -39,21 +39,42 @@ population_data AS (
   FROM latest_values
   WHERE rn = 1
   GROUP BY country_code, country_name
+),
+
+world_bank_profile AS (
+  SELECT
+    c.country_code,
+    c.income_group,
+    pd.country_name,
+    pd.birth_rate,
+    pd.population,
+    CAST(pd.urban_rate / 100 AS FLOAT64) AS urban_rate,
+    CAST(pd.birth_rate / 1000 * pd.population AS INT64) AS annual_number_of_births
+  FROM ${ref("stg_country")} c
+  INNER JOIN population_data pd
+    ON pd.country_code = c.country_code
+  WHERE c.income_group IN (
+    'Upper middle income',
+    'Lower middle income',
+    'Low income'
+  )
+),
+
+-- World Bank indicators are national-level only, so Indian states used by LEEP program
+-- geographies are appended here from a dedicated sheet, defaulting to India's own income
+-- group. urban_rate is left NULL: not supplied by the sheet.
+india_state_profile AS (
+  SELECT
+    country_code,
+    'Lower middle income' AS income_group,
+    country_name,
+    birth_rate_crude AS birth_rate,
+    population_total AS population,
+    CAST(NULL AS FLOAT64) AS urban_rate,
+    CAST(birth_rate_crude / 1000 * population_total AS INT64) AS annual_number_of_births
+  FROM ${ref("stg_india_state_profile")}
 )
 
-SELECT
-  c.country_code,
-  c.income_group,
-  pd.country_name,
-  pd.birth_rate,
-  pd.population,
-  CAST(pd.urban_rate / 100 AS FLOAT64) AS urban_rate,
-  CAST(pd.birth_rate / 1000 * pd.population AS INT64) AS annual_number_of_births
-FROM ${ref("stg_country")} c
-INNER JOIN population_data pd
-  ON pd.country_code = c.country_code
-WHERE c.income_group IN (
-  'Upper middle income',
-  'Lower middle income',
-  'Low income'
-)
+SELECT * FROM world_bank_profile
+UNION ALL
+SELECT * FROM india_state_profile

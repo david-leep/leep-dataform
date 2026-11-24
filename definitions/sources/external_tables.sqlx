@@ -67,3 +67,10 @@ OPTIONS (
   uris = ['https://docs.google.com/spreadsheets/d/16h_lxlNHRuO9oe82hxyGRPOB9CnQYzA9DV-WWec_rIA/edit'],
   skip_leading_rows = 1
 );
+
+CREATE OR REPLACE EXTERNAL TABLE `leep-data-system.core.india_state_profile`
+OPTIONS (
+  format = 'GOOGLE_SHEETS',
+  uris = ['https://docs.google.com/spreadsheets/d/1W0NQYLx2qjpZnDkaxPRqs0Pz8lWMTo0Uf3ubTw_hpeE/edit'],
+  skip_leading_rows = 1
+);
