@@ -45,3 +45,9 @@ declare({
   name: "program_status",
   description: "Program status and counterfactual assumptions per LEEP program geography. One row per country and program, giving engagement status, source of funding, and the lead paint reduction percentage assumed on program success. External table backed by a Google Sheet."
 });
+
+declare({
+  schema: "core",
+  name: "india_state_profile",
+  description: "State-level birth rate and population for Indian states with LEEP program geographies, since World Bank indicators are national-level only. Appended onto core.int_country_profile."
+});

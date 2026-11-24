@@ -1,0 +1,27 @@
+config {
+  type: "table",
+  name: "stg_india_state_profile",
+  schema: "core",
+  description: "Birth rate and population for Indian states with LEEP eyeliner programs. World Bank indicators have no India sub-national breakdown, so this fills that gap from a dedicated sheet.",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code", "birth_rate_crude", "population_total"],
+    rowConditions: [
+      "birth_rate_crude >= 0",
+      "population_total >= 0"
+    ]
+  }
+}
+
+SELECT
+  country_name,
+  country_code,
+  CAST(birth_rate_crude AS FLOAT64) AS birth_rate_crude,
+  -- population_total is comma-formatted in the sheet; strip commas before casting.
+  CAST(REPLACE(population_total, ',', '') AS INT64) AS population_total
+FROM
+  ${ref("india_state_profile")}
+WHERE country_code IS NOT NULL
