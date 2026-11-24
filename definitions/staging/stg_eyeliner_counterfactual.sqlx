@@ -1,0 +1,32 @@
+config {
+  type: "table",
+  name: "stg_eyeliner_counterfactual",
+  schema: "eyeliner",
+  tags: ["staging"],
+  // Sheet-backed source: force the external table DDL to run first.
+  dependencies: ["external_tables"],
+  assertions: {
+    uniqueKey: ["country_code"],
+    nonNull: ["country_code"],
+    rowConditions: [
+      "lead_market_reduction_percentage BETWEEN 0 AND 1",
+      "program_success_probability BETWEEN 0 AND 1"
+    ]
+  }
+}
+
+SELECT
+  country_name,
+  country_code,
+  program,
+  status,
+  source_of_funding,
+  market_shift_year,
+  market_shift_counterfactual_year,
+  lead_market_reduction_percentage,
+  program_success_probability
+FROM
+  ${ref("eyeliner_counterfactual")}
+WHERE country_code IS NOT NULL
+  -- Dropped countries are excluded from the model entirely, not just deprioritised.
+  AND status != 'drop'
